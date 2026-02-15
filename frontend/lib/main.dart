@@ -105,7 +105,7 @@ class HomeTabContent extends StatelessWidget {
           // success
           else if (state is DataFetchSuccess) {
             return ListView(
-              children: state.data!.words
+              children: state.data!.data
                   .map(
                     (spot) => ListTile(
                       title: Text(spot['name']),
