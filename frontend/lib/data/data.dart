@@ -1,25 +1,25 @@
 import 'dart:convert';
 
 class Data {
-  final List words;
-  Data({required this.words});
-  Data copyWith({List? words}) {
-    return Data(words: words ?? this.words);
+  final List data;
+  Data({required this.data});
+  Data copyWith({List? data}) {
+    return Data(data: data ?? this.data);
   }
 
   Map toMap() {
-    return {'words': words};
+    return {'data': data};
   }
 
   factory Data.fromMap(Map map) {
-    return Data(words: List.from((map['data'] as List)));
+    return Data(data: List.from((map['data'] as List)));
   }
   String toJson() => json.encode(toMap());
   factory Data.fromJson(String source) =>
       Data.fromMap(json.decode(source) as Map);
   @override
-  String toString() => 'Data(words: $words)';
+  String toString() => 'Data(data: $data)';
   @override
   // ignore: hash_and_equals
-  int get hashCode => words.hashCode;
+  int get hashCode => data.hashCode;
 }
