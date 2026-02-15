@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'data/cubit.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,8 +13,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Home Page',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), useMaterial3: true),
-      home: const HomePage(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+      ),
+      home: BlocProvider(
+        create: (context) => DataCubit()..fetch(),
+        child: const HomePage(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -58,9 +66,17 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.white,
         elevation: 8,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
@@ -78,8 +94,37 @@ class HomeTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Home', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home Page'), centerTitle: true),
+      body: BlocBuilder<DataCubit, DataState>(
+        builder: (context, state) {
+          // loading
+          if (state is DataFetchLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          // success
+          else if (state is DataFetchSuccess) {
+            return ListView(
+              children: state.data!.words
+                  .map(
+                    (spot) => ListTile(
+                      title: Text(spot['name']),
+                      subtitle: Text(
+                        'Spaces: ${spot['spaces']} • Distance: ${spot['distance']}km',
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          }
+          // failure
+          else if (state is DataFetchFailed) {
+            return Center(child: Text(state.message!));
+          }
+          // something unexpected
+          return const Center(child: Text('Something went wrong'));
+        },
+      ),
     );
   }
 }
@@ -91,7 +136,10 @@ class SearchTabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Text('Search', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+      child: Text(
+        'Search',
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
@@ -103,7 +151,10 @@ class ProfileTabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Text('Profile', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+      child: Text(
+        'Profile',
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
@@ -115,7 +166,10 @@ class SettingsTabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Text('Settings', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+      child: Text(
+        'Settings',
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
