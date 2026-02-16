@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'data/cubit.dart';
+import 'parking_timer.dart';
 
 void main() {
   runApp(const MyApp());
@@ -96,34 +97,56 @@ class HomeTabContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Home Page'), centerTitle: true),
-      body: BlocBuilder<DataCubit, DataState>(
-        builder: (context, state) {
-          // loading
-          if (state is DataFetchLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          // success
-          else if (state is DataFetchSuccess) {
-            return ListView(
-              children: state.data!.data
-                  .map(
-                    (spot) => ListTile(
-                      title: Text(spot['name']),
-                      subtitle: Text(
-                        'Spaces: ${spot['spaces']} • Distance: ${spot['distance']}km',
-                      ),
-                    ),
-                  )
-                  .toList(),
-            );
-          }
-          // failure
-          else if (state is DataFetchFailed) {
-            return Center(child: Text(state.message!));
-          }
-          // something unexpected
-          return const Center(child: Text('Something went wrong'));
-        },
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Parking Timer
+            ParkingTimer(
+              onSessionEnd: () {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Your parking session has ended')));
+              },
+              onExtend: (extension) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Session extended by ${extension.inMinutes} minutes'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+            ),
+
+            // Parking spots list
+            BlocBuilder<DataCubit, DataState>(
+              builder: (context, state) {
+                // loading
+                if (state is DataFetchLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                // success
+                else if (state is DataFetchSuccess) {
+                  return Column(
+                    children: state.data!.data
+                        .map(
+                          (spot) => ListTile(
+                            title: Text(spot['name']),
+                            subtitle: Text('Spaces: ${spot['spaces']} • Distance: ${spot['distance']}km'),
+                          ),
+                        )
+                        .toList(),
+                  );
+                }
+                // failure
+                else if (state is DataFetchFailed) {
+                  return Center(child: Text(state.message!));
+                }
+                // something unexpected
+                return const Center(child: Text('Something went wrong'));
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
