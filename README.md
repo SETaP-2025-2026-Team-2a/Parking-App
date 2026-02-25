@@ -45,6 +45,8 @@ Parking-App/
 
 ## Getting Started
 
+Documentation for the project is available [here](https://setap-team-2a-2026.readthedocs.io/en/latest/).
+
 ### Prerequisites
 - Flutter SDK (^3.9.2)
 - Python 3.x
