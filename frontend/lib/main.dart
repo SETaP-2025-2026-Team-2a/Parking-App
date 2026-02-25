@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'data/cubit.dart';
-import 'parking_timer.dart';
+import 'widgets/parking_timer.dart';
+import 'pages/profile_page.dart';
+import 'pages/settings_page.dart';
+import 'utils/theme_manager.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,17 +15,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Home Page',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: BlocProvider(
-        create: (context) => DataCubit()..fetch(),
-        child: const HomePage(),
-      ),
-      debugShowCheckedModeBanner: false,
+    return AnimatedBuilder(
+      animation: ThemeManager(),
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'Home Page',
+          theme: ThemeManager().lightTheme,
+          darkTheme: ThemeManager().darkTheme,
+          themeMode: ThemeManager().isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          home: BlocProvider(create: (context) => DataCubit()..fetch(), child: const HomePage()),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
@@ -167,32 +171,4 @@ class SearchTabContent extends StatelessWidget {
   }
 }
 
-// Profile Tab Content
-class ProfileTabContent extends StatelessWidget {
-  const ProfileTabContent({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Profile',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
-
-// Settings Tab Content
-class SettingsTabContent extends StatelessWidget {
-  const SettingsTabContent({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Settings',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
