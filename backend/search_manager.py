@@ -1,4 +1,4 @@
-from flask_restful import Resource, fields
+from flask_restful import Resource
 from flask import request
 from marshmallow import Schema, fields, ValidationError
 from enum import Enum
