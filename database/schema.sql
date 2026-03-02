@@ -24,3 +24,25 @@ CREATE TABLE ParkingSpace (
     FOREIGN KEY (carpark_id) REFERENCES CarPark(carpark_id),
     FOREIGN KEY (space_type) REFERENCES CarPark(space_type)
 )
+
+CREATE TABLE ParkingSession (
+    session_id SERIAL PRIMARY KEY,
+    user_rating INT,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    expiry_time DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES User(user_id),
+    FOREIGN KEY (vehicle_id) REFERENCES Vehicle(vehicle_id),
+    FOREIGN KEY (carpark_id) REFERENCES CarPark(carpark_id)
+)
+
+CREATE TABLE User (
+    user_id SERIAL PRIMARY KEY,
+    payment_token VARCHAR(255) NOT NULL
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL
+)
+
+
