@@ -45,4 +45,11 @@ CREATE TABLE User (
     password_hash VARCHAR(255) NOT NULL
 )
 
+CREATE TABLE Vehicle (
+    vehicle_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    registration VARCHAR(20) NOT NULL UNIQUE,
+    type ENUM('CAR', 'MOTORCYCLE', 'LORRY', 'EV', 'PCV'),
+    FOREIGN KEY (user_id) REFERENCES User(user_id)
+)
 
