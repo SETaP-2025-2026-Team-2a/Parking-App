@@ -16,3 +16,11 @@ CREATE TABLE CarParkType (
     type_id SERIAL PRIMARY KEY,
     type_label VARCHAR(50) NOT NULL
 )
+
+CREATE TABLE ParkingSpace (
+    space_id SERIAL PRIMARY KEY,
+    carpark_id INT NOT NULL,
+    is_occupied BOOLEAN NOT NULL,
+    FOREIGN KEY (carpark_id) REFERENCES CarPark(carpark_id),
+    FOREIGN KEY (space_type) REFERENCES CarPark(space_type)
+)
