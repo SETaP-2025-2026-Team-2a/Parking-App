@@ -11,3 +11,8 @@ CREATE TABLE CarPark (
     space_type ENUM('CAR', 'MOTORCYCLE', 'LORRY', 'DISABLED', "PARENT AND CHILD"),
     FOREIGN KEY (type_id) REFERENCES CarParkType(type_id)
 )
+
+CREATE TABLE CarParkType (
+    type_id SERIAL PRIMARY KEY,
+    type_label VARCHAR(50) NOT NULL
+)
