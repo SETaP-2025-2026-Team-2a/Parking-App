@@ -4,7 +4,8 @@ from flask_cors import CORS
 
 from car_park_manager import ParkingSpots
 from search_manager import SearchManager
-from user_manager import UserResource, UsersResource, LoginResource
+from user_manager import UserResource, UsersResource
+from authentication_manager import LoginResource
 
 
 server= flask.Flask(__name__)
