@@ -53,3 +53,13 @@ CREATE TABLE Vehicle (
     FOREIGN KEY (user_id) REFERENCES User(user_id)
 )
 
+CREATE TABLE UserVehicles (
+    user_id INT NOT NULL,
+    Foreign KEY (user_id) REFERENCES User(user_id),
+)
+
+CREATE TABLE Reviews (
+    review_id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    review INT NOT NULL CHECK (review >= 0 AND review <= 5)
+)
