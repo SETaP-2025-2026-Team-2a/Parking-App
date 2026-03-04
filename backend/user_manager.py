@@ -2,12 +2,11 @@ from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-def getUser(name, lastname, email=None, password=None, process="Get User"):
+def getUser(name, lastname, email=None, password=None, ):
     # Implement logic to retrieve user information based on the username
     # This is a placeholder implementation, replace with actual database query
     result = False
-    if process == "getUser":
-        if name == "test" and lastname == "user":
+    if name == "test" and lastname == "user":
             result = True
             return {
                 "process": "Get User",
@@ -16,20 +15,11 @@ def getUser(name, lastname, email=None, password=None, process="Get User"):
                 "email": "testuser@example.com",
                 "result": result
             }
-        return {
+    return {
             "process": "Get User",
             "name": name,
             "lastname": lastname,
             "email": email, 
-            "result": result
-        }
-    if process == "Sign In":
-        return {
-            "process": "Sign In",
-            "name": name,
-            "lastname": lastname,
-            "email": email, 
-            "password_hash": generate_password_hash("Test"), #placeholder hash, replace with actual hash from database
             "result": result
         }
 
@@ -72,27 +62,6 @@ def createUser(name, lastname, email, password):
             "result": True
         }, 201
 
-def validateUser(name, lastname, password):
-    user = getUser(name, lastname, password=password, process="Sign In")
-    if not user:
-        return {"process": "Sign In", "result": False, "error": "Invalid credentials"}, 401
-
-    if not check_password_hash(user["password_hash"], password):
-        return {"process": "Sign In", "result": False, "error": "Invalid credentials"}, 401
-
-    # Later: create JWT/session here
-    return {"process": "Sign In", "result": True, "name": user["name"], "lastname": user["lastname"]}, 200
-
-
-class LoginResource(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("name", type=str, required=True)
-        parser.add_argument("lastname", type=str, required=True)
-        parser.add_argument("password", type=str, required=True)
-        args = parser.parse_args()
-
-        return validateUser(args["name"], args["lastname"], args["password"])
 
 class UsersResource(Resource):
     def post(self):
@@ -126,3 +95,5 @@ class UserResource(Resource):
 
         password_hash = generate_password_hash(args["password"]) if args.get("password") else None
         return updateUser(name, lastname, email=args.get("email"), password_hash=password_hash), 200
+
+
