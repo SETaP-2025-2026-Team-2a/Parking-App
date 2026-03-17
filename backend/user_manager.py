@@ -1,39 +1,30 @@
+from unicodedata import name
+
 from flask_restful import Resource, reqparse
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-def getUser(name, lastname, email=None, password=None, ):
+def getUser(email):
     # Implement logic to retrieve user information based on the username
     # This is a placeholder implementation, replace with actual database query
     result = False
-    if name == "test" and lastname == "user":
-            result = True
-            return {
-                "process": "Get User",
-                "name": name,
-                "lastname": lastname,
+    if email == "testuser@example.com":
+        result = True
+        return {
+            "process": "Get User",
+            "name": "Test",
+            "lastname": "User",
                 "email": "testuser@example.com",
                 "result": result
             }
     return {
             "process": "Get User",
-            "name": name,
-            "lastname": lastname,
+            "name": None,
+            "lastname": None,
             "email": email, 
             "result": result
         }
 
-
-def deleteUser(name, lastname):
-    # Implement logic to delete a user based on the name and lastname
-    # This is a placeholder implementation, replace with actual database deletion
-    result = True
-    return {
-        "process": "Delete User",
-        "name": name,
-        "lastname": lastname,
-        "result": result
-    }
 
 
 def updateUser(name, lastname, email=None, password_hash=None):
@@ -77,8 +68,8 @@ class UsersResource(Resource):
         return createUser(args["name"], args["lastname"], args["email"], args["password"])
 
 class UserResource(Resource):
-    def get(self, name, lastname):
-        return getUser(name, lastname)
+    def get(self, email):
+        return getUser(email)
 
     def put(self):
         parser = reqparse.RequestParser()
