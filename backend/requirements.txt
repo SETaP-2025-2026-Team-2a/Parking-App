@@ -3,3 +3,5 @@ flask-restful
 flask-cors
 marshmallow
 PyJWT
+psycopg2
+python-dotenv
