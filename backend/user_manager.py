@@ -1,59 +1,93 @@
-from unicodedata import name
-
+import os
 from flask_restful import Resource, reqparse
-from werkzeug.security import generate_password_hash, check_password_hash
+import psycopg2
+from werkzeug.security import generate_password_hash
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
+
+POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))  # Default to 5432 if not set
+
+def get_database_connection():
+    return psycopg2.connect(
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        database=POSTGRES_DB,
+        user=POSTGRES_USERNAME,
+        password=POSTGRES_PASSWORD
+    )
 
 
-def getUser(email):
-    # Implement logic to retrieve user information based on the username
-    # This is a placeholder implementation, replace with actual database query
-    result = False
-    if email == "testuser@example.com":
-        result = True
+def get_user(email):
+    with get_database_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT name, lastname FROM users WHERE email = %s", (email,))
+            user = cursor.fetchone()
+    if user:
         return {
             "process": "Get User",
-            "name": "Test",
-            "lastname": "User",
-                "email": "testuser@example.com",
-                "result": result
-            }
+            "name": user[0],
+            "lastname": user[1],
+            "result": True
+        }
     return {
             "process": "Get User",
             "name": None,
             "lastname": None,
             "email": email, 
-            "result": result
-        }
+            "result": False
+        }, 404
 
 
 
-def updateUser(name, lastname, email=None, password_hash=None):
-    # Implement logic to update a user based on the name and lastname
-    # This is a placeholder implementation, replace with actual database update
-    print(f"Updating user: {name} {lastname}, email: {email}, password_hash: {password_hash}")
+def update_user(name, lastname, email=None):
+    with get_database_connection() as conn:
+        with conn.cursor() as cursor:
+                cursor.execute("UPDATE users SET name=%s, lastname=%s WHERE email=%s RETURNING email", (name, lastname, email))
+                updated = cursor.fetchone()
+    if updated:
+        print(f"Updating user: {name} {lastname}, email: {email}")
+        return {
+            "process": "Update User",
+            "result": True
+    }
     return {
         "process": "Update User",
+        "result": False
+    }, 404
+
+
+
+def create_user(name, lastname, email, password):
+    password_hash = generate_password_hash(password)
+
+    with get_database_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO users (name, lastname, email, password_hash)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (email) DO NOTHING
+                RETURNING email
+                """,
+                (name, lastname, email, password_hash),
+            )
+            row = cursor.fetchone()
+
+    if not row:
+        return {"process": "Create User", "result": False, "error": "Email already exists"}, 409
+
+    return {
+        "process": "Create User",
+        "result": True,
         "name": name,
         "lastname": lastname,
-        "email": email,
-        "result": True
-    }
-
-
-def createUser(name, lastname, email, password):
-
-        password_hash = generate_password_hash(password)
-        # Implement logic to create a new user based on the provided information
-        # This is a placeholder implementation, replace with actual database insertion
-        print(f"Creating user: {name} {lastname}, {email}, {password_hash}")
-
-        return {
-            "process": "Create User",
-            "name": name,
-            "lastname": lastname,
-            "email": email,
-            "result": True
-        }, 201
+        "email": row[0],
+    }, 201
 
 
 class UsersResource(Resource):
@@ -65,27 +99,19 @@ class UsersResource(Resource):
         parser.add_argument("password", type=str, required=True)
         args = parser.parse_args()
 
-        return createUser(args["name"], args["lastname"], args["email"], args["password"])
+        return create_user(args["name"], args["lastname"], args["email"], args["password"])
 
 class UserResource(Resource):
     def get(self, email):
-        return getUser(email)
+        return get_user(email)
 
-    def put(self):
+    def put(self, email):
         parser = reqparse.RequestParser()
-        parser.add_argument("email", type=str, required=False)
-        parser.add_argument("password", type=str, required=False)
         parser.add_argument("name", type=str, required=True)
         parser.add_argument("lastname", type=str, required=True)
         args = parser.parse_args()
 
-        if not args.get("email") and not args.get("password"):
-            return {
-                "process": "Update User",
-                "error": "At least one field is required: email or password"
-            }, 400
+        return update_user(args["name"], args["lastname"], email)
 
-        password_hash = generate_password_hash(args["password"]) if args.get("password") else None
-        return updateUser(args["name"], args["lastname"], email=args.get("email"), password_hash=password_hash), 200
 
 
