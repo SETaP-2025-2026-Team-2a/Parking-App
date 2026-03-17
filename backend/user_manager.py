@@ -52,6 +52,8 @@ def updateUser(name, lastname, email=None, password_hash=None):
 def createUser(name, lastname, email, password):
 
         password_hash = generate_password_hash(password)
+        # Implement logic to create a new user based on the provided information
+        # This is a placeholder implementation, replace with actual database insertion
         print(f"Creating user: {name} {lastname}, {email}, {password_hash}")
 
         return {
@@ -78,13 +80,12 @@ class UserResource(Resource):
     def get(self, name, lastname):
         return getUser(name, lastname)
 
-    def delete(self, name, lastname):
-        return deleteUser(name, lastname), 200
-
-    def put(self, name, lastname):
+    def put(self):
         parser = reqparse.RequestParser()
         parser.add_argument("email", type=str, required=False)
         parser.add_argument("password", type=str, required=False)
+        parser.add_argument("name", type=str, required=True)
+        parser.add_argument("lastname", type=str, required=True)
         args = parser.parse_args()
 
         if not args.get("email") and not args.get("password"):
@@ -94,6 +95,6 @@ class UserResource(Resource):
             }, 400
 
         password_hash = generate_password_hash(args["password"]) if args.get("password") else None
-        return updateUser(name, lastname, email=args.get("email"), password_hash=password_hash), 200
+        return updateUser(args["name"], args["lastname"], email=args.get("email"), password_hash=password_hash), 200
 
 
