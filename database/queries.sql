@@ -25,3 +25,14 @@ ORDER BY vehicle_id DESC;
 
 DELETE FROM Vehicle
 WHERE vehicle_id = $1 AND user_id = $2;
+
+
+-- Create car park
+INSERT INTO CarPark (name, location, is_restricted, type_id, space_type)
+VALUES (
+  $1,
+  ST_SetSRID(ST_MakePoint($2, $3), 4326),
+  $4,
+  $5,
+  $6
+)
