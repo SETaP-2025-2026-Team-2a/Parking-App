@@ -14,3 +14,9 @@ WHERE email = $1;
 INSERT INTO Vehicle (user_id, registration, type)
 VALUES ($1, $2, $3)
 RETURNING vehicle_id;
+
+-- List user vehicles
+SELECT vehicle_id, registration, type
+FROM Vehicle
+WHERE user_id = $1
+ORDER BY vehicle_id DESC;
