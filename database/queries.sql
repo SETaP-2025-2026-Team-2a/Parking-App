@@ -62,3 +62,9 @@ INSERT INTO ParkingSession (start_time, expiry_time, user_id, vehicle_id, carpar
 VALUES (NOW(), $1, $2, $3, $4)
 RETURNING session_id;
 
+
+-- End parking session
+UPDATE ParkingSession
+SET end_time = NOW(), user_rating = $2
+WHERE session_id = $1
+RETURNING session_id, start_time, end_time, expiry_time;
