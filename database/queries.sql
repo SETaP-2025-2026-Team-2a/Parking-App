@@ -36,3 +36,4 @@ VALUES (
   $5,
   $6
 )
+RETURNING carpark_id;
