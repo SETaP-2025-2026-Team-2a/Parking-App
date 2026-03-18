@@ -77,3 +77,10 @@ WHERE user_id = $1
   AND end_time IS NULL
 ORDER BY start_time DESC
 LIMIT 1;
+
+-- Session history
+SELECT session_id, start_time, end_time, expiry_time, carpark_id, vehicle_id
+FROM ParkingSession
+WHERE user_id = $1
+ORDER BY start_time DESC
+LIMIT $2 OFFSET $3;
