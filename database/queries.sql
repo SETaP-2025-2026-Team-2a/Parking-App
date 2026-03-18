@@ -20,3 +20,8 @@ SELECT vehicle_id, registration, type
 FROM Vehicle
 WHERE user_id = $1
 ORDER BY vehicle_id DESC;
+
+--DELETE A VEHICLE
+
+DELETE FROM Vehicle
+WHERE vehicle_id = $1 AND user_id = $2;
