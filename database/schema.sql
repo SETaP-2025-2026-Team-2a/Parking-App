@@ -1,16 +1,17 @@
 
-
+CREATE EXTENSION IF NOT EXISTS postgis;
 
 CREATE TABLE CarPark (
     carpark_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    lATITUDE DECIMAL(10, 6) NOT NULL,
-    LONGITUDE DECIMAL(10, 6) NOT NULL,
+    location GEOMETRY(POINT, 4326),
     is_restricted BOOLEAN NOT NULL,
     type_id INT,
-    space_type ENUM('CAR', 'MOTORCYCLE', 'LORRY', 'DISABLED', "PARENT AND CHILD"),
+    space_type ENUM('CAR', 'MOTORCYCLE', 'LORRY', 'DISABLED', 'PARENT_AND_CHILD'),
     FOREIGN KEY (type_id) REFERENCES CarParkType(type_id)
-)
+);
+
+CREATE INDEX idx_carpark_location ON CarPark USING GIST(location);
 
 CREATE TABLE CarParkType (
     type_id SERIAL PRIMARY KEY,
@@ -38,7 +39,7 @@ CREATE TABLE ParkingSession (
 
 CREATE TABLE User (
     user_id SERIAL PRIMARY KEY,
-    payment_token VARCHAR(255) NOT NULL
+    payment_token VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -55,7 +56,9 @@ CREATE TABLE Vehicle (
 
 CREATE TABLE UserVehicles (
     user_id INT NOT NULL,
-    Foreign KEY (user_id) REFERENCES User(user_id),
+    vehicle_id INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES User(user_id),
+    FOREIGN KEY (vehicle_id) REFERENCES Vehicle(vehicle_id)
 )
 
 CREATE TABLE Reviews (
@@ -63,3 +66,20 @@ CREATE TABLE Reviews (
     title TEXT NOT NULL,
     review INT NOT NULL CHECK (review >= 0 AND review <= 5)
 )
+
+-- =====================================================
+-- PostGIS Location Services - Useful Queries
+    =====================================================
+-- Note: Populate the location column using:
+-- UPDATE CarPark SET location = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) WHERE location IS NULL;
+
+-- Find nearest parking spots within 5km of a point (latitude, longitude):
+-- SELECT carpark_id, name, 
+--        ST_Distance(location::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography) as distance_meters
+-- FROM CarPark
+-- WHERE ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography, 5000)
+-- ORDER BY distance_meters LIMIT 20;
+
+-- Find car parks within a specific radius (e.g., 1km):
+-- SELECT carpark_id, name FROM CarPark 
+-- WHERE ST_Distance(location, ST_SetSRID(ST_MakePoint(:user_lon, :user_lat), 4326)) < 1000;
