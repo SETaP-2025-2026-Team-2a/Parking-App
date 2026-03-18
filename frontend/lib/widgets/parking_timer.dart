@@ -18,6 +18,7 @@ class ParkingTimer extends StatefulWidget {
 }
 
 class _ParkingTimerState extends State<ParkingTimer> {
+  static const Duration _maxSessionDuration = Duration(hours: 24);
   Duration _remainingTime = Duration.zero;
   Timer? _timer;
   bool _isActive = false;
@@ -43,9 +44,18 @@ class _ParkingTimerState extends State<ParkingTimer> {
   }
 
   void _extendSession(int minutes) {
+    final extension = Duration(minutes: minutes);
+    final currentSeconds = _remainingTime.inSeconds;
+    final maxSeconds = _maxSessionDuration.inSeconds;
+    final requestedSeconds = extension.inSeconds;
+    final isOverLimitRequest = currentSeconds + requestedSeconds > maxSeconds;
+
+    if (isOverLimitRequest) {
+      return;
+    }
+
     setState(() {
-      final extension = Duration(minutes: minutes);
-      _remainingTime = Duration(seconds: _remainingTime.inSeconds + extension.inSeconds);
+      _remainingTime = Duration(seconds: currentSeconds + requestedSeconds);
       widget.onExtend?.call(extension);
       
       // Start the timer if it's not already running and we're active
@@ -88,6 +98,11 @@ class _ParkingTimerState extends State<ParkingTimer> {
 
   @override
   Widget build(BuildContext context) {
+    final remainingSeconds = _remainingTime.inSeconds;
+    final maxSeconds = _maxSessionDuration.inSeconds;
+    final canAdd30Minutes = remainingSeconds + const Duration(minutes: 30).inSeconds <= maxSeconds;
+    final canAdd60Minutes = remainingSeconds + const Duration(minutes: 60).inSeconds <= maxSeconds;
+
     return Card(
       elevation: 4,
       margin: const EdgeInsets.all(16),
@@ -152,7 +167,7 @@ class _ParkingTimerState extends State<ParkingTimer> {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _extendSession(30),
+                      onPressed: canAdd30Minutes ? () => _extendSession(30) : null,
                       icon: const Icon(Icons.add_circle_outline),
                       label: const Text('+30 mins'),
                       style: ElevatedButton.styleFrom(
@@ -168,7 +183,7 @@ class _ParkingTimerState extends State<ParkingTimer> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _extendSession(60),
+                      onPressed: canAdd60Minutes ? () => _extendSession(60) : null,
                       icon: const Icon(Icons.add_circle),
                       label: const Text('+60 mins'),
                       style: ElevatedButton.styleFrom(
