@@ -54,3 +54,11 @@ WHERE ST_DWithin(
 )
 ORDER BY distance_meters
 LIMIT $4 OFFSET $5;
+
+
+
+-- Start parking session
+INSERT INTO ParkingSession (start_time, expiry_time, user_id, vehicle_id, carpark_id)
+VALUES (NOW(), $1, $2, $3, $4)
+RETURNING session_id;
+
