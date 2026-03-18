@@ -37,3 +37,20 @@ VALUES (
   $6
 )
 RETURNING carpark_id;
+
+-- Find nearby car parks by point and radius (meters)
+SELECT
+  cp.carpark_id,
+  cp.name,
+  ST_Distance(
+    cp.location::geography,
+    ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+  ) AS distance_meters
+FROM CarPark cp
+WHERE ST_DWithin(
+  cp.location::geography,
+  ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+  $3
+)
+ORDER BY distance_meters
+LIMIT $4 OFFSET $5;
