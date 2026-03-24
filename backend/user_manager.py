@@ -56,13 +56,12 @@ def update_user(name, lastname, email=None):
 
 
 
-def create_user(name, lastname, email, password):
+def create_user(username, email, password):
     password_hash = generate_password_hash(password)
     try:
         supabase = get_database_connection()
         response = supabase.table("person").insert({
-            "name": name,
-            "lastname": lastname,
+            "username": username,  
             "email": email,
             "password_hash": password_hash
         }).execute()
@@ -87,13 +86,12 @@ def create_user(name, lastname, email, password):
 class UsersResource(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument("name", type=str, required=True)
-        parser.add_argument("lastname", type=str, required=True)
+        parser.add_argument("username", type=str, required=True)
         parser.add_argument("email", type=str, required=True)
         parser.add_argument("password", type=str, required=True)
         args = parser.parse_args()
 
-        return create_user(args["name"], args["lastname"], args["email"], args["password"])
+        return create_user(args["username"], args["email"], args["password"])
 
 class UserResource(Resource):
     def get(self, email):
