@@ -3,8 +3,8 @@ from werkzeug.security import check_password_hash
 import os
 from datetime import datetime, timedelta, timezone
 import jwt
-import psycopg2
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 
 load_dotenv()  # Load environment variables from .env file
@@ -13,11 +13,8 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "60"))  # Default to 60 minutes if not set
 
-POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST")
-POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))  # Default to 5432 if not set   
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")   
 
 
 def create_session_token(user):
@@ -32,27 +29,26 @@ def create_session_token(user):
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def get_database_connection():
-    return psycopg2.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        database=POSTGRES_DB,
-        user=POSTGRES_USERNAME,
-        password=POSTGRES_PASSWORD
-    )
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    return supabase
 
 def getUser(email=None):
     try:
-        with get_database_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT name, lastname, email, password_hash FROM users WHERE email=%s", (email,))
-                row = cursor.fetchone()
-
-        if row:
+        supabase = get_database_connection()
+        response = supabase.table("users").select("*").eq("email", email).execute()
+        if response.error:
+            print(f"Error fetching user from database: {response.error.message}")
             return {
-                "name": row[0],
-                "lastname": row[1],
-                "email": row[2],
-                "password_hash": row[3],
+                "email": email,
+                "result": False,
+                "error": "An error occurred while fetching the user"
+            }
+        if response.data:
+            return {
+                "name": response.data[0]["name"],
+                "lastname": response.data[0]["lastname"],
+                "email": response.data[0]["email"],
+                "password_hash": response.data[0]["password_hash"],
                 "result": True
             }
         return {
@@ -102,9 +98,12 @@ def deleteUser(email, password):
 
         print(f"Deleting user: {user['name']}")
 
-        with get_database_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM users WHERE email=%s", (email,))
+        supabase = get_database_connection()
+        response = supabase.table("users").delete().eq("email", email).execute()
+        if response.error:
+            print(f"Error deleting user from database: {response.error.message}")
+            return {"process": "Delete User", "error": "An error occurred while deleting the user"}, 500
+
         return {
             "process": "Delete User",
             "name": user["name"],
