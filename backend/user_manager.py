@@ -76,8 +76,7 @@ def create_user(username, email, password):
     return {
         "process": "Create User",
         "result": True,
-        "name": name,
-        "lastname": lastname,
+        "username": username,
         "email": response.data[0]["email"],
     }, 201
 
