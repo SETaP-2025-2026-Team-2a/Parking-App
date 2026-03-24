@@ -3,7 +3,12 @@ import '../utils/theme_manager.dart';
 
 // Settings Tab Content
 class SettingsTabContent extends StatefulWidget {
-  const SettingsTabContent({super.key});
+  final VoidCallback onLogout;
+
+  const SettingsTabContent({
+    super.key,
+    required this.onLogout,
+  });
 
   @override
   State<SettingsTabContent> createState() => _SettingsTabContentState();
@@ -282,7 +287,7 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logged out successfully')));
+                widget.onLogout();
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Logout'),
