@@ -84,3 +84,11 @@ FROM ParkingSession
 WHERE user_id = $1
 ORDER BY start_time DESC
 LIMIT $2 OFFSET $3;
+
+-- Occupy a parking space (safe update)
+UPDATE ParkingSpace
+SET is_occupied = true
+WHERE space_id = $1
+  AND carpark_id = $2
+  AND is_occupied = false
+RETURNING space_id;
