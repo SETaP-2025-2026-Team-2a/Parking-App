@@ -40,7 +40,7 @@ def getUser(email=None):
             "email": email,
             "password_hash": generate_password_hash("adminpassword"),
             "result": True
-        }
+        }, 200
     try:
         supabase = get_database_connection()
         response = supabase.table("users").select("*").eq("email", email).execute()
@@ -50,7 +50,7 @@ def getUser(email=None):
                 "email": email,
                 "result": False,
                 "error": "An error occurred while fetching the user"
-            }
+            }, 500
         if response.data:
             return {
                 "name": response.data[0]["name"],
