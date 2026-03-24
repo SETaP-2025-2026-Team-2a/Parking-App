@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'data/cubit.dart';
 import 'widgets/parking_timer.dart';
+import 'pages/auth_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
@@ -22,8 +23,10 @@ class MyApp extends StatelessWidget {
           title: 'Home Page',
           theme: ThemeManager().lightTheme,
           darkTheme: ThemeManager().darkTheme,
-          themeMode: ThemeManager().isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: BlocProvider(create: (context) => DataCubit()..fetch(), child: const HomePage()),
+          themeMode: ThemeManager().isDarkMode
+              ? ThemeMode.dark
+              : ThemeMode.light,
+          home: const AuthGate(),
           debugShowCheckedModeBanner: false,
         );
       },
@@ -31,8 +34,64 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  String? _username;
+  String? _email;
+  int _authPageVersion = 0;
+
+  void _onAuthenticated({required String username, required String email}) {
+    setState(() {
+      _username = username;
+      _email = email;
+    });
+  }
+
+  void _onLogout() {
+    setState(() {
+      _username = null;
+      _email = null;
+      _authPageVersion++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_username == null || _email == null) {
+      return AuthPage(
+        key: ValueKey('auth-$_authPageVersion'),
+        onAuthenticated: _onAuthenticated,
+      );
+    }
+
+    return BlocProvider(
+      create: (context) => DataCubit()..fetch(),
+      child: HomePage(
+        username: _username!,
+        email: _email!,
+        onLogout: _onLogout,
+      ),
+    );
+  }
+}
+
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String username;
+  final String email;
+  final VoidCallback onLogout;
+
+  const HomePage({
+    super.key,
+    required this.username,
+    required this.email,
+    required this.onLogout,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -41,13 +100,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  // Pages for each tab
-  final List<Widget> _pages = [
-    const HomeTabContent(),
-    const SearchTabContent(),
-    const ProfileTabContent(),
-    const SettingsTabContent(),
-  ];
+  void _handleLogout() {
+    setState(() {
+      _selectedIndex = 0;
+    });
+    widget.onLogout();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -55,11 +113,29 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Widget _buildCurrentPage() {
+    switch (_selectedIndex) {
+      case 0:
+        return const HomeTabContent();
+      case 1:
+        return const SearchTabContent();
+      case 2:
+        return ProfileTabContent(
+          userName: widget.username,
+          userEmail: widget.email,
+        );
+      case 3:
+        return SettingsTabContent(onLogout: _handleLogout);
+      default:
+        return const HomeTabContent();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: _pages[_selectedIndex],
+      body: _buildCurrentPage(),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
@@ -107,14 +183,18 @@ class HomeTabContent extends StatelessWidget {
             // Parking Timer
             ParkingTimer(
               onSessionEnd: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Your parking session has ended')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Your parking session has ended'),
+                  ),
+                );
               },
               onExtend: (extension) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Session extended by ${extension.inMinutes} minutes'),
+                    content: Text(
+                      'Session extended by ${extension.inMinutes} minutes',
+                    ),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -135,7 +215,9 @@ class HomeTabContent extends StatelessWidget {
                         .map(
                           (spot) => ListTile(
                             title: Text(spot['name']),
-                            subtitle: Text('Spaces: ${spot['spaces']} • Distance: ${spot['distance']}km'),
+                            subtitle: Text(
+                              'Spaces: ${spot['spaces']} • Distance: ${spot['distance']}km',
+                            ),
                           ),
                         )
                         .toList(),
@@ -170,5 +252,3 @@ class SearchTabContent extends StatelessWidget {
     );
   }
 }
-
-
