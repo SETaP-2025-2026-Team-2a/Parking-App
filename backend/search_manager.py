@@ -1,45 +1,45 @@
-from flask_restful import Resource
-from flask import request
-from marshmallow import Schema, fields, ValidationError
-from enum import Enum
+from flask_restful import Resource, reqparse
+from car_park_manager import CarParkSchema
 
-class CarParkTypeEnum(Enum):
-    MultiStorey = 1
-    Surface = 2
-    Underground = 3
-    Street = 4
-
-class RangeSchema(Schema):
-    min = fields.Float()
-    max = fields.Float()
-
-class FiltersSchema(Schema):
-    price = fields.Nested(RangeSchema)
-    rating = fields.Nested(RangeSchema)
-    # In metres
-    distance = fields.Nested(RangeSchema)
-
-    types = fields.List(fields.Enum(CarParkTypeEnum))
-
-class LocationSchema(Schema):
-    longitude = fields.Float()
-    latitude = fields.Float()
-
-class SearchQuerySchema(Schema):
-    query = fields.String()
-
-    filters = fields.Nested(FiltersSchema)
-    location = fields.Nested(LocationSchema)
 
 class SearchManager(Resource):
     def get(self, **kwargs):
-        schema = SearchQuerySchema()
-
-        try:
-            data = schema.load(request.get_json())
-        except ValidationError as err:
-            return {"error": err.messages}, 400
-        
-        location = data["location"]
+        parser = reqparse.RequestParser()
+        parser.add_argument("query", type=str, required=True)
+        parser.add_argument("minPrice", type=float, required=True)
+        parser.add_argument("maxPrice", type=float, required=True)
+        parser.add_argument("minRating", type=float, required=True)
+        parser.add_argument("maxRating", type=float, required=True)
+        parser.add_argument("minDistance", type=float, required=True)
+        parser.add_argument("maxDistance", type=float, required=True)
+        parser.add_argument("longitude", type=float, required=True)
+        parser.add_argument("lattitude", type=float, required=True)
+        args = parser.parse_args()
 
         # TODO: something with the query data
+        # location = data["location"]
+        # some kind of SQL query etc...
+
+        return [
+            CarParkSchema(
+                {
+                    "name": "Gunwharf Quays",
+                    "price": 100,
+                    "distance": 10,
+                }
+            ).dump(),
+            CarParkSchema(
+                {
+                    "name": "The Hard",
+                    "price": 100,
+                    "distance": 10,
+                }
+            ).dump(),
+            CarParkSchema(
+                {
+                    "name": "Clarence Esplanade",
+                    "price": 100,
+                    "distance": 10,
+                }
+            ).dump(),
+        ]
