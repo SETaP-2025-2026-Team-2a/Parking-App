@@ -1,7 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'data/cubit.dart';
+import 'widgets/parking_timer.dart';
+import 'pages/profile_page.dart';
+import 'pages/settings_page.dart';
+import 'utils/theme_manager.dart';
 import 'package:flutter/material.dart';
-import 'search_page.dart';
+import 'search_page.dart' as search;
 
 void main() {
   runApp(const ParkingApp());
@@ -38,9 +44,10 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    const SearchPage(),
-    const HistoryPage(),
-    const SettingsPage(),
+    const search.SearchPage(),
+    const HistoryPageWrapper(),
+    const ProfilePageWrapper(),
+    const SettingsTabContent(),
   ];
 
   void _onItemTapped(int index) {
@@ -62,6 +69,7 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
@@ -377,22 +385,44 @@ class PremiumCard extends StatelessWidget {
   }
 }
 
-// Placeholder for HistoryPage
-class HistoryPage extends StatelessWidget {
-  const HistoryPage({super.key});
+// Wrapper for HistoryPage
+class HistoryPageWrapper extends StatelessWidget {
+  const HistoryPageWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('History Page'));
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('History'),
+        backgroundColor: Colors.white,
+        elevation: 1,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history, size: 64, color: Color(0xFF008752)),
+            SizedBox(height: 16),
+            Text(
+              'Your Parking History',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('No history yet'),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-// Placeholder for SettingsPage
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+// Wrapper for ProfilePage
+class ProfilePageWrapper extends StatelessWidget {
+  const ProfilePageWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Settings Page'));
+    return const ProfileTabContent();
   }
 }
+
