@@ -8,6 +8,7 @@ import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
 import 'package:flutter/material.dart';
 import 'search_page.dart' as search;
+import 'pages/login_page.dart';
 
 void main() {
   runApp(const ParkingApp());
@@ -26,7 +27,7 @@ class ParkingApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
         useMaterial3: true,
       ),
-      home: const MainNavigation(),
+      home: const LoginPage(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -425,4 +426,3 @@ class ProfilePageWrapper extends StatelessWidget {
     return const ProfileTabContent();
   }
 }
-
