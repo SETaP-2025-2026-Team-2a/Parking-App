@@ -13,7 +13,6 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
   bool _notificationsEnabled = true;
   bool _locationEnabled = true;
   bool _autoExtendParking = false;
-  String _selectedLanguage = 'English';
   final ThemeManager _themeManager = ThemeManager();
 
   @override
@@ -87,15 +86,6 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
               setState(() {
                 _locationEnabled = value;
               });
-            },
-          ),
-          _buildSettingsTile(
-            icon: Icons.language,
-            title: 'Language',
-            subtitle: _selectedLanguage,
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              _showLanguageDialog();
             },
           ),
           const Divider(height: 32),
@@ -205,43 +195,7 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
       subtitle: Text(subtitle),
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.blue,
-    );
-  }
-
-  void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Select Language'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildLanguageOption('English'),
-              _buildLanguageOption('Spanish'),
-              _buildLanguageOption('French'),
-              _buildLanguageOption('German'),
-              _buildLanguageOption('Chinese'),
-            ],
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))],
-        );
-      },
-    );
-  }
-
-  Widget _buildLanguageOption(String language) {
-    return RadioListTile<String>(
-      title: Text(language),
-      value: language,
-      groupValue: _selectedLanguage,
-      onChanged: (value) {
-        setState(() {
-          _selectedLanguage = value!;
-        });
-        Navigator.pop(context);
-      },
+      activeThumbColor: Colors.blue,
     );
   }
 

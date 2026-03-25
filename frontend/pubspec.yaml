@@ -37,6 +37,9 @@ dependencies:
   equatable: ^2.0.5
   http: ^1.6.0
   flutter_bloc: ^9.1.1
+  flutter_map: ^8.2.2
+  flutter_tts: ^4.2.5
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

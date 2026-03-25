@@ -10,12 +10,12 @@ class ProfileTabContent extends StatefulWidget {
 
 class _ProfileTabContentState extends State<ProfileTabContent> {
   // Sample data - in real app, this would come from a database
-  List<Map<String, String>> _vehicles = [
+  final List<Map<String, String>> _vehicles = [
     {'nickname': 'My Car', 'vrm': 'ABC 123', 'type': 'Personal'},
     {'nickname': 'Work Van', 'vrm': 'XYZ 789', 'type': 'Work'},
   ];
 
-  List<Map<String, String>> _paymentMethods = [
+  final List<Map<String, String>> _paymentMethods = [
     {'type': 'Visa', 'last4': '4242', 'expiry': '12/26'},
     {'type': 'Mastercard', 'last4': '8888', 'expiry': '08/27'},
   ];
@@ -110,7 +110,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
                 ),
               )
             else
-              ..._vehicles.map((vehicle) => _buildVehicleTile(vehicle)).toList(),
+              ..._vehicles.map((vehicle) => _buildVehicleTile(vehicle)),
             const Divider(height: 32),
 
             // Payment Methods Section
@@ -128,7 +128,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
                 ),
               )
             else
-              ..._paymentMethods.map((payment) => _buildPaymentTile(payment)).toList(),
+              ..._paymentMethods.map((payment) => _buildPaymentTile(payment)),
             const SizedBox(height: 20),
           ],
         ),
@@ -434,7 +434,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: vehicleType,
+                initialValue: vehicleType,
                 decoration: const InputDecoration(
                   labelText: 'Type',
                   border: OutlineInputBorder(),
@@ -510,7 +510,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: vehicleType,
+                initialValue: vehicleType,
                 decoration: const InputDecoration(
                   labelText: 'Type',
                   border: OutlineInputBorder(),
@@ -596,7 +596,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: paymentType,
+                  initialValue: paymentType,
                   decoration: const InputDecoration(
                     labelText: 'Payment Type',
                     border: OutlineInputBorder(),
