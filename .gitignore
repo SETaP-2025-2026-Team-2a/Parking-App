@@ -1,1 +1,7 @@
 .DS_Store
+frontend/ios/Podfile
+frontend/linux/flutter/generated_plugin_registrant.cc
+frontend/linux/flutter/generated_plugin_registrant.h
+frontend/linux/flutter/generated_plugins.cmake
+frontend/macos/Podfile
+frontend/windows/flutter/generated_plugin_registrant.h
