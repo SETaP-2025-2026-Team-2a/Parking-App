@@ -5,7 +5,7 @@ import 'package:parkingapp/user_addition/user_model.dart';
 Future<void> createUser({
   required CreateUserRequest request,
 }) async {
-  final uri = Uri.parse('http://127.0.0.1:8080/api/users'); // Adjust the URL as needed
+  final uri = Uri.parse('http://127.0.0.1:8080/users'); // Adjust the URL as needed
 
   final response = await http.post(
     uri,
