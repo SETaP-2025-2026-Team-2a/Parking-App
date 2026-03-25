@@ -1,32 +1,73 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'data/cubit.dart';
-import 'widgets/parking_timer.dart';
-import 'pages/profile_page.dart';
-import 'pages/settings_page.dart';
-import 'utils/theme_manager.dart';
+import 'search_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ParkingApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ParkingApp extends StatelessWidget {
+  const ParkingApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: ThemeManager(),
-      builder: (context, child) {
-        return MaterialApp(
-          title: 'Home Page',
-          theme: ThemeManager().lightTheme,
-          darkTheme: ThemeManager().darkTheme,
-          themeMode: ThemeManager().isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: BlocProvider(create: (context) => DataCubit()..fetch(), child: const HomePage()),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+    return MaterialApp(
+      title: 'Parking App',
+      theme: ThemeData(
+        fontFamily: 'Ubuntu',
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF008752)),
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        useMaterial3: true,
+      ),
+      home: const MainNavigation(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class MainNavigation extends StatefulWidget {
+  const MainNavigation({super.key});
+
+  @override
+  State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends State<MainNavigation> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    const HomePage(),
+    const SearchPage(),
+    const HistoryPage(),
+    const SettingsPage(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: const Color(0xFF008752),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -39,115 +80,136 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  static const Duration _extensionDuration = Duration(minutes: 30);
 
-  // Pages for each tab
-  final List<Widget> _pages = [
-    const HomeTabContent(),
-    const SearchTabContent(),
-    const ProfileTabContent(),
-    const SettingsTabContent(),
-  ];
+  late Duration _remainingDuration;
+  late Duration _totalDuration;
+  Timer? _timer;
+  bool _isPaused = false;
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+  @override
+  void initState() {
+    super.initState();
+    _remainingDuration = const Duration(hours: 1, minutes: 0);
+    _totalDuration = _remainingDuration;
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_isPaused || _remainingDuration == Duration.zero) {
+        return;
+      }
+
+      setState(() {
+        final nextDuration = _remainingDuration - const Duration(seconds: 1);
+        if (nextDuration <= Duration.zero) {
+          _remainingDuration = Duration.zero;
+          _isPaused = true;
+          _timer?.cancel();
+        } else {
+          _remainingDuration = nextDuration;
+        }
+      });
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey[600],
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-      ),
-    );
+  void _togglePause() {
+    if (_remainingDuration == Duration.zero) {
+      return;
+    }
+
+    setState(() {
+      _isPaused = !_isPaused;
+    });
   }
-}
 
-// Home Tab Content
-class HomeTabContent extends StatelessWidget {
-  const HomeTabContent({super.key});
+  void _addThirtyMinutes() {
+    setState(() {
+      _remainingDuration += _extensionDuration;
+      _totalDuration += _extensionDuration;
+      if (_remainingDuration > Duration.zero && _timer == null) {
+        _startTimer();
+      }
+    });
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home Page'), centerTitle: true),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Parking Timer
-            ParkingTimer(
-              onSessionEnd: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Your parking session has ended')));
-              },
-              onExtend: (extension) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Session extended by ${extension.inMinutes} minutes'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-            ),
+    final progress = _totalDuration.inSeconds == 0
+        ? 0.0
+        : _remainingDuration.inSeconds / _totalDuration.inSeconds;
 
-            // Parking spots list
-            BlocBuilder<DataCubit, DataState>(
-              builder: (context, state) {
-                // loading
-                if (state is DataFetchLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                // success
-                else if (state is DataFetchSuccess) {
-                  return Column(
-                    children: state.data!.data
-                        .map(
-                          (spot) => ListTile(
-                            title: Text(spot['name']),
-                            subtitle: Text('Spaces: ${spot['spaces']} • Distance: ${spot['distance']}km'),
-                          ),
-                        )
-                        .toList(),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home'),
+        backgroundColor: Colors.white,
+        elevation: 1,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Hero Zone
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: const [
+                CircularActionButton(icon: Icons.electric_car, label: 'EV'),
+                CircularActionButton(
+                  icon: Icons.accessible,
+                  label: 'Accessible',
+                ),
+                CircularActionButton(icon: Icons.umbrella, label: 'Covered'),
+                CircularActionButton(icon: Icons.money, label: '<£10'),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Active Stay Widget
+            Expanded(
+              flex: 3,
+              child: ActiveStayWidget(
+                remainingTime: _formatDuration(_remainingDuration),
+                progress: progress,
+                isPaused: _isPaused,
+                onPauseResume: _togglePause,
+                onAddThirtyMinutes: _addThirtyMinutes,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Nearby Car Parks
+            const Text(
+              'Nearby Car Parks',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              flex: 1,
+              child: ListView.builder(
+                itemCount: 5,
+                itemBuilder: (context, index) {
+                  return const PremiumCard(
+                    locationId: '1234',
+                    name: 'Car Park Name',
+                    distance: '0.5 miles',
+                    price: '£2.50/hr',
                   );
-                }
-                // failure
-                else if (state is DataFetchFailed) {
-                  return Center(child: Text(state.message!));
-                }
-                // something unexpected
-                return const Center(child: Text('Something went wrong'));
-              },
+                },
+              ),
             ),
           ],
         ),
@@ -156,19 +218,181 @@ class HomeTabContent extends StatelessWidget {
   }
 }
 
-// Search Tab Content
-class SearchTabContent extends StatelessWidget {
-  const SearchTabContent({super.key});
+class CircularActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const CircularActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Search',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 28,
+          backgroundColor: const Color(0xFF008752),
+          child: Icon(icon, color: Colors.white),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+}
+
+class ActiveStayWidget extends StatelessWidget {
+  final String remainingTime;
+  final double progress;
+  final bool isPaused;
+  final VoidCallback onPauseResume;
+  final VoidCallback onAddThirtyMinutes;
+
+  const ActiveStayWidget({
+    super.key,
+    required this.remainingTime,
+    required this.progress,
+    required this.isPaused,
+    required this.onPauseResume,
+    required this.onAddThirtyMinutes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            'ACTIVE STAY',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: Color(0xFF008752),
+            ),
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            width: 180,
+            height: 180,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 180,
+                  height: 180,
+                  child: CircularProgressIndicator(
+                    value: progress.clamp(0, 1),
+                    color: const Color(0xFF008752),
+                    strokeWidth: 12,
+                    backgroundColor: const Color(0xFFE9F4EE),
+                  ),
+                ),
+                Text(
+                  remainingTime,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FilledButton.icon(
+                onPressed: onPauseResume,
+                icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
+                label: Text(isPaused ? 'Resume' : 'Pause'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: onAddThirtyMinutes,
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('+30 min'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
+class PremiumCard extends StatelessWidget {
+  final String locationId;
+  final String name;
+  final String distance;
+  final String price;
 
+  const PremiumCard({
+    super.key,
+    required this.locationId,
+    required this.name,
+    required this.distance,
+    required this.price,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE0E0E0)),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            locationId,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        title: Text(name),
+        subtitle: Text('$distance • $price'),
+      ),
+    );
+  }
+}
+
+// Placeholder for HistoryPage
+class HistoryPage extends StatelessWidget {
+  const HistoryPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('History Page'));
+  }
+}
+
+// Placeholder for SettingsPage
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text('Settings Page'));
+  }
+}
