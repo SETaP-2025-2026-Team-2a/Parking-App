@@ -425,4 +425,3 @@ class ProfilePageWrapper extends StatelessWidget {
     return const ProfileTabContent();
   }
 }
-
