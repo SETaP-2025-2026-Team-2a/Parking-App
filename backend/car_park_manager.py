@@ -10,6 +10,7 @@ class CarParkSchema(Schema):
     carpark_id = fields.String()
     name = fields.String()
     spaces = fields.Integer(validate=validate.Range(min=0))
+    price = fields.Float(validate=validate.Range(min=0), allow_none=True)
     distance = fields.Float(validate=validate.Range(min=0))
     avg_rating = fields.Float(validate=validate.Range(min=0))
 
