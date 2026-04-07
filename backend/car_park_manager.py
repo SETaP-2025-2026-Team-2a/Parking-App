@@ -3,7 +3,7 @@ import email
 from flask_restful import Resource, reqparse
 from marshmallow import Schema, fields, validate
 
-from backend.user_manager import get_database_connection
+from user_manager import get_database_connection
 
 
 class CarParkSchema(Schema):
