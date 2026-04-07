@@ -50,16 +50,23 @@ class SearchManager(Resource):
 
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument("query", type=str, required=True)
-        parser.add_argument("minPrice", type=float, required=True)
-        parser.add_argument("maxPrice", type=float, required=True)
-        parser.add_argument("minRating", type=float, required=True)
-        parser.add_argument("maxRating", type=float, required=True)
-        parser.add_argument("minDistance", type=float, required=True)
-        parser.add_argument("maxDistance", type=float, required=True)
-        parser.add_argument("longitude", type=float, required=True)
-        parser.add_argument("latitude", type=float, required=True)
+        parser.add_argument("query", type=str, required=True, location="args")
+        parser.add_argument("minPrice", type=float, required=True, location="args")
+        parser.add_argument("maxPrice", type=float, required=True, location="args")
+        parser.add_argument("minRating", type=float, required=True, location="args")
+        parser.add_argument("maxRating", type=float, required=True, location="args")
+        parser.add_argument("minDistance", type=float, required=True, location="args")
+        parser.add_argument("maxDistance", type=float, required=True, location="args")
+        parser.add_argument("longitude", type=float, required=True, location="args")
+        parser.add_argument("latitude", type=float, required=False, location="args")
+        parser.add_argument("lattitude", type=float, required=False, location="args")
         args = parser.parse_args()
+
+        user_latitude = args.get("latitude")
+        if user_latitude is None:
+            user_latitude = args.get("lattitude")
+        if user_latitude is None:
+            return {"error": "Either latitude or lattitude is required"}, 400
 
         if args["minPrice"] > args["maxPrice"]:
             return {"error": "minPrice cannot be greater than maxPrice"}, 400
@@ -76,7 +83,6 @@ class SearchManager(Resource):
         min_distance = args["minDistance"]
         max_distance = args["maxDistance"]
         user_longitude = args["longitude"]
-        user_latitude = args["latitude"]
 
         supabase = get_database_connection()
         response = supabase.table("car_parks").select("*").execute()
