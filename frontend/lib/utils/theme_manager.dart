@@ -7,23 +7,16 @@ class ThemeManager extends ChangeNotifier {
   ThemeManager._internal();
 
   bool _isDarkMode = false;
-  VoidCallback? _onThemeChanged;
 
   bool get isDarkMode => _isDarkMode;
 
-  void setOnThemeChanged(VoidCallback callback) {
-    _onThemeChanged = callback;
-  }
-
   void toggleTheme() {
     _isDarkMode = !_isDarkMode;
-    _onThemeChanged?.call();
     notifyListeners();
   }
 
   void setDarkMode(bool value) {
     _isDarkMode = value;
-    _onThemeChanged?.call();
     notifyListeners();
   }
 
