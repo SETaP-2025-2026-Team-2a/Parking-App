@@ -47,7 +47,9 @@ class SearchParkingSpots(Resource):
                 'distance': 1.2,
             },
         ]
-        return data
+        return {
+            'data': data,
+            }
 
 api.add_resource(ParkingSpots, '/')
 api.add_resource(SearchParkingSpots, '/search')
