@@ -26,10 +26,6 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _themeManager = widget.themeManager;
-    // Register the setState callback so theme changes trigger rebuilds
-    _themeManager.setOnThemeChanged(() {
-      setState(() {});
-    });
     _themeManager.addListener(_onThemeChanged);
   }
 
