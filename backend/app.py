@@ -26,6 +26,30 @@ class ParkingSpots(Resource):
         return {
             'data': data,
             }
+
+class SearchParkingSpots(Resource):
+    def get(self):
+        # Return parking spots for search requests (ignoring filter params for now)
+        data = [
+            {
+                'name': 'gunwharf quays',
+                'spaces': 100,
+                'distance': 0.5,
+            },
+            {
+                'name': 'portsmouth harbour',
+                'spaces': 50,
+                'distance': 0.8,
+            },
+            {
+                'name': 'fratton park',
+                'spaces': 20,
+                'distance': 1.2,
+            },
+        ]
+        return data
+
 api.add_resource(ParkingSpots, '/')
+api.add_resource(SearchParkingSpots, '/search')
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)

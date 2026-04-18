@@ -7,16 +7,23 @@ class ThemeManager extends ChangeNotifier {
   ThemeManager._internal();
 
   bool _isDarkMode = false;
+  VoidCallback? _onThemeChanged;
 
   bool get isDarkMode => _isDarkMode;
 
+  void setOnThemeChanged(VoidCallback callback) {
+    _onThemeChanged = callback;
+  }
+
   void toggleTheme() {
     _isDarkMode = !_isDarkMode;
+    _onThemeChanged?.call();
     notifyListeners();
   }
 
   void setDarkMode(bool value) {
     _isDarkMode = value;
+    _onThemeChanged?.call();
     notifyListeners();
   }
 
@@ -29,6 +36,8 @@ class ThemeManager extends ChangeNotifier {
       ),
       useMaterial3: true,
       brightness: Brightness.light,
+      scaffoldBackgroundColor: Colors.white,
+      appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 1),
     );
   }
 
@@ -41,6 +50,8 @@ class ThemeManager extends ChangeNotifier {
       ),
       useMaterial3: true,
       brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF1E1E1E), foregroundColor: Colors.white, elevation: 1),
     );
   }
 }

@@ -168,7 +168,7 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: Colors.blue, size: 24),
       ),
       title: Text(title),
@@ -188,7 +188,7 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
     return SwitchListTile(
       secondary: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: Colors.blue, size: 24),
       ),
       title: Text(title),

@@ -7,26 +7,51 @@ import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp(themeManager: ThemeManager()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  final ThemeManager themeManager;
+
+  const MyApp({required this.themeManager, super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late ThemeManager _themeManager;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeManager = widget.themeManager;
+    // Register the setState callback so theme changes trigger rebuilds
+    _themeManager.setOnThemeChanged(() {
+      setState(() {});
+    });
+    _themeManager.addListener(_onThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    _themeManager.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: ThemeManager(),
-      builder: (context, child) {
-        return MaterialApp(
-          title: 'Home Page',
-          theme: ThemeManager().lightTheme,
-          darkTheme: ThemeManager().darkTheme,
-          themeMode: ThemeManager().isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: BlocProvider(create: (context) => DataCubit()..fetch(), child: const HomePage()),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+    return MaterialApp(
+      title: 'Home Page',
+      theme: _themeManager.lightTheme,
+      darkTheme: _themeManager.darkTheme,
+      themeMode: _themeManager.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      home: BlocProvider(create: (context) => DataCubit()..fetch(), child: const HomePage()),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
