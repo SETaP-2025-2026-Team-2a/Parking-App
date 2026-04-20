@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login_page.dart';
 import '../utils/theme_manager.dart';
 
 // Settings Tab Content
@@ -97,7 +98,9 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
             title: 'Help & Support',
             subtitle: 'Get help with the app',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Help & Support clicked')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Help & Support clicked')),
+              );
             },
           ),
           _buildSettingsTile(
@@ -105,7 +108,9 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
             title: 'Privacy Policy',
             subtitle: 'Read our privacy policy',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Privacy Policy clicked')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Privacy Policy clicked')),
+              );
             },
           ),
           _buildSettingsTile(
@@ -113,7 +118,9 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
             title: 'Terms of Service',
             subtitle: 'Read our terms of service',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Terms of Service clicked')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Terms of Service clicked')),
+              );
             },
           ),
           _buildSettingsTile(
@@ -137,9 +144,37 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Logout', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Logout',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: OutlinedButton(
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const LoginPage()));
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF008752),
+                side: const BorderSide(color: Color(0xFF008752)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'DEV MODE ONLY: ACCESS LOGIN PAGE',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -153,7 +188,12 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 0.5),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[600],
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -218,7 +258,12 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
               Text('All rights reserved.'),
             ],
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
         );
       },
     );
@@ -232,11 +277,16 @@ class _SettingsTabContentState extends State<SettingsTabContent> {
           title: const Text('Logout'),
           content: const Text('Are you sure you want to logout?'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logged out successfully')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Logged out successfully')),
+                );
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Logout'),

@@ -1,3 +1,7 @@
 flask
 flask-restful
 flask-cors
+marshmallow
+PyJWT
+supabase
+python-dotenv
