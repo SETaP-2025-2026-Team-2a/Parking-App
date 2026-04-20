@@ -10,22 +10,45 @@ import 'package:flutter/material.dart';
 import 'search_page.dart' as search;
 
 void main() {
-  runApp(const ParkingApp());
+  runApp(MyApp(themeManager: ThemeManager()));
 }
 
-class ParkingApp extends StatelessWidget {
-  const ParkingApp({super.key});
+class MyApp extends StatefulWidget {
+  final ThemeManager themeManager;
+
+  const MyApp({required this.themeManager, super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late ThemeManager _themeManager;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeManager = widget.themeManager;
+    _themeManager.addListener(_onThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    _themeManager.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Parking App',
-      theme: ThemeData(
-        fontFamily: 'Ubuntu',
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF008752)),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-        useMaterial3: true,
-      ),
+      theme: _themeManager.lightTheme,
+      darkTheme: _themeManager.darkTheme,
+      themeMode: _themeManager.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const MainNavigation(),
       debugShowCheckedModeBanner: false,
     );

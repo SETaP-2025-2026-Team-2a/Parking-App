@@ -29,6 +29,8 @@ class ThemeManager extends ChangeNotifier {
       ),
       useMaterial3: true,
       brightness: Brightness.light,
+      scaffoldBackgroundColor: Colors.white,
+      appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 1),
     );
   }
 
@@ -41,6 +43,8 @@ class ThemeManager extends ChangeNotifier {
       ),
       useMaterial3: true,
       brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF1E1E1E), foregroundColor: Colors.white, elevation: 1),
     );
   }
 }
