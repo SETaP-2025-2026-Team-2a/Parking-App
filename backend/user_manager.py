@@ -1,17 +1,7 @@
-import os
 from flask_restful import Resource, reqparse
-from supabase import create_client, Client
 from werkzeug.security import generate_password_hash
-from dotenv import load_dotenv
+from modules import get_database_connection
 
-load_dotenv()  # Load environment variables from .env file
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-
-def get_database_connection():
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-    return supabase
     
 
 

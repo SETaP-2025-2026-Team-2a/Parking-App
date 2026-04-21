@@ -2,7 +2,7 @@ from flask_restful import Resource, reqparse
 from marshmallow import Schema, fields
 from datetime import datetime, timedelta
 
-from user_manager import get_database_connection
+from modules import get_database_connection
 
 
 class ParkingSessionSchema(Schema):

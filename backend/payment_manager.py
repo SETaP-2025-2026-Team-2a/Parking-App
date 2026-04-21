@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from user_manager import get_database_connection
+from modules import get_database_connection
 from werkzeug.security import check_password_hash
 
 class Payment(Resource):

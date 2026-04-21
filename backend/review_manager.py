@@ -1,7 +1,7 @@
 from flask_restful import Resource, reqparse
 from marshmallow import Schema, fields, validate
 
-from user_manager import get_database_connection
+from modules import get_database_connection
 
 class ReviewSchema(Schema):
     user_id = fields.String(required=True)
