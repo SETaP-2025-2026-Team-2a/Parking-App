@@ -16,7 +16,8 @@ Parking-App/
 │   └── pubspec.yaml            # Flutter dependencies
 │
 └── backend/           # Flask REST API server
-    ├── app.py                  # API endpoints
+    ├── server.py               # API root
+    |-- abcxyz_manager.py       # Managers for handling various API routes
     └── requirements.txt        # Python dependencies
 ```
 
@@ -42,6 +43,7 @@ Parking-App/
 - **Flask** - Python web framework
 - **Flask-RESTful** - REST API extension
 - **Flask-CORS** - Cross-origin resource sharing
+- **Supabase** - For hosting the backend database
 
 ## Getting Started
 
@@ -94,8 +96,6 @@ Documentation for the project is available [here](https://setap-team-2a-2026.rea
 
 ### GET `/`
 Returns a list of available parking locations.
-
-
 
 ## Architecture
 
