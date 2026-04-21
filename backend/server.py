@@ -7,7 +7,7 @@ from search_manager import SearchManager
 from user_manager import UserResource, UsersResource
 from authentication_manager import LoginResource
 from review_manager import ReviewManager
-
+from session_manager import ParkingSessionManager
 
 server= flask.Flask(__name__)
 CORS(server) 
@@ -19,6 +19,7 @@ api.add_resource(UsersResource, '/users')  # POST create
 api.add_resource(UserResource, '/users/<string:email>') # GET read, PUT update
 api.add_resource(LoginResource, "/login") # POST login
 api.add_resource(ReviewManager, "/review") # POST add review, GET get reviews for specific car park, DELETE
+api.add_resource(ParkingSessionManager, "/parking-session")
 
 
 
