@@ -58,6 +58,7 @@ class ParkingSessionManager(Resource):
             return {"error": "Times must be positive"}
 
         # Check if user, carpark, and vehicle exist
+        # TODO extra validation to link user to vehicle
 
         supabase = get_database_connection()
 
@@ -92,16 +93,71 @@ class ParkingSessionManager(Resource):
         except Exception as e:
             return {"error": e}
 
-    # Otherwise create new parking session
+        # Otherwise create new parking session
         try:
-            response = supabase.table("ParkingSession").insert({
-                "user_id": args["user_id"],
-                "vehicle_id": args["vehicle_id"],
-                "carpark_id": args["carpark_id"],
-                "start_time": datetime.now().isoformat(),
-                "end_time": datetime.now() + timedelta(seconds=args["duration"]),
-                "expiry_time": datetime.now() + timedelta(seconds=args["duration"])
-            })
+            response = supabase.table("ParkingSession").insert(
+                {
+                    "user_id": args["user_id"],
+                    "vehicle_id": args["vehicle_id"],
+                    "carpark_id": args["carpark_id"],
+                    "start_time": datetime.now().isoformat(),
+                    "end_time": datetime.now() + timedelta(seconds=args["duration"]),
+                    "expiry_time": datetime.now() + timedelta(seconds=args["duration"]),
+                }
+            )
 
         except Exception as e:
             return {"error": e}, 500
+
+    def put(self):
+        VALID_ACTIONS = ["extend", "cancel"]
+
+        parser = reqparse.RequestParser()
+        parser.add_argument("user_id", required=True, type=int)
+        parser.add_argument("session_id", required=True, type=int)
+        parser.add_argument("action", required=True, type=str)
+        parser.add_argument("action_data", type=str)
+        args = parser.parse_args()
+
+        if not args["action"] in VALID_ACTIONS:
+            return {"error": "Inalid action"}, 400
+
+        supabase = get_database_connection()
+
+        try:
+            response = (
+                supabase.table("User")
+                .select("user_id")
+                .eq("user_id", args["user_id"])
+                .execute()
+            )
+            if len(response.data) != 1:
+                raise Exception("No user with ID")
+
+            response = (
+                supabase.table("ParkingSession")
+                .select("session_id")
+                .eq("session_id", args["session_id"])
+                .execute()
+            )
+            if len(response.data) != 1:
+                raise Exception("No session with ID")
+
+        except Exception as e:
+            return {"error": e}
+        
+        if args["action"] == "cancel":
+            # TODO: Unsure whether to delete or mark as invalid
+            pass
+        elif args["action"] == "extend":
+            try:
+                # Firstly get current duration
+                response = supabase.table("ParkingSession").select("expiry_time").eq("session_id", args["session_id"]).execute()
+                expiry_time = datetime.fromisoformat(response.data[0]["expiry_time"])
+
+                response = supabase.table("ParkingSession").update({
+                    "end_time": expiry_time + timedelta(seconds=int(args["action_data"]))
+                }).execute()
+            except Exception as e:
+                return {"error": e}, 500
+            
