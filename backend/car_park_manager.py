@@ -1,5 +1,3 @@
-import email
-
 from flask_restful import Resource, reqparse
 from marshmallow import Schema, fields, validate
 
