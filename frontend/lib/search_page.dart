@@ -38,6 +38,7 @@ class _SearchPageState extends State<SearchPage> {
   bool _isRouting = false;
   bool _isLocating = false;
   bool _followUser = false;
+  bool _speechEnabled = true;
   String? _errorMessage;
   StreamSubscription<Position>? _positionSubscription;
 
@@ -60,6 +61,16 @@ class _SearchPageState extends State<SearchPage> {
     await _tts.setLanguage('en-GB');
     await _tts.setSpeechRate(0.48);
     await _tts.setVolume(1.0);
+  }
+
+  Future<void> _setSpeechEnabled(bool enabled) async {
+    setState(() {
+      _speechEnabled = enabled;
+    });
+
+    if (!enabled) {
+      await _tts.stop();
+    }
   }
 
   Future<void> _setUserLocation() async {
@@ -155,7 +166,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _speakNavigationIntro() async {
-    if (_directions.isEmpty) {
+    if (!_speechEnabled || _directions.isEmpty) {
       return;
     }
 
@@ -168,6 +179,10 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _checkNavigationVoice(LatLng current) async {
+    if (!_speechEnabled) {
+      return;
+    }
+
     if (_navigationSteps.isEmpty ||
         _nextVoiceStepIndex >= _navigationSteps.length) {
       if (_arrivalAnnounced) {
@@ -505,6 +520,17 @@ class _SearchPageState extends State<SearchPage> {
                         )
                       : const Text('Go'),
                 ),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  onPressed: () => _setSpeechEnabled(!_speechEnabled),
+                  tooltip: _speechEnabled
+                      ? 'Turn speech off'
+                      : 'Turn speech on',
+                  icon: Icon(
+                    _speechEnabled ? Icons.volume_up : Icons.volume_off,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
                   onPressed: () {
