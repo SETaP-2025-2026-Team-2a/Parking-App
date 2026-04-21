@@ -147,8 +147,13 @@ class ParkingSessionManager(Resource):
             return {"error": e}
         
         if args["action"] == "cancel":
-            # TODO: Unsure whether to delete or mark as invalid
-            pass
+
+            response = supabase.table("ParkingSession").update({
+                "end_time": datetime.now().isoformat(),
+                "expiry_time": datetime.now().isoformat()
+            }).execute()
+
+            
         elif args["action"] == "extend":
             try:
                 # Firstly get current duration
@@ -156,8 +161,8 @@ class ParkingSessionManager(Resource):
                 expiry_time = datetime.fromisoformat(response.data[0]["expiry_time"])
 
                 response = supabase.table("ParkingSession").update({
-                    "end_time": expiry_time + timedelta(seconds=int(args["action_data"]))
-                }).execute()
+                    "expiry_time": expiry_time + timedelta(seconds=int(args["action_data"]))
+                }).eq("session_id", args["session_id"]).execute()
             except Exception as e:
                 return {"error": e}, 500
             
