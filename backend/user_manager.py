@@ -8,14 +8,31 @@ from modules import get_database_connection
 def get_user(email):
     try:
         supabase = get_database_connection()
-        response = supabase.table("users").select("name", "lastname").eq("email", email).execute()
+        response = (
+            supabase.table("User")
+            .select("first_name", "last_name", "email")
+            .eq("email", email)
+            .execute()
+        )
+
         if response.data:
+            user = response.data[0]
             return {
                 "process": "Get User",
-                "name": response.data[0]["name"],
-                "lastname": response.data[0]["lastname"],
-                "result": True
-            }
+                "name": user.get("first_name"),
+                "lastname": user.get("last_name"),
+                "email": user.get("email"),
+                "result": True,
+            }, 200
+
+        return {
+            "process": "Get User",
+            "name": None,
+            "lastname": None,
+            "email": email,
+            "error": "User not found",
+            "result": False,
+        }, 404
     except Exception as e:
         print(f"Error occurred while fetching user: {e}")
         return {
@@ -31,7 +48,7 @@ def get_user(email):
 
 def update_user(name, lastname, email=None):
     supabase = get_database_connection()
-    response = supabase.table("users").update({"name": name, "lastname": lastname}).eq("email", email).execute()
+    response = supabase.table("User").update({"name": name, "lastname": lastname}).eq("email", email).execute()
     if response.data:
 
         print(f"Updating user: {name} {lastname}, email: {email}")
@@ -50,7 +67,7 @@ def create_user(username, email, password):
     password_hash = generate_password_hash(password)
     try:
         supabase = get_database_connection()
-        response = supabase.table("person").insert({
+        response = supabase.table("User").insert({
             "username": username,  
             "email": email,
             "password_hash": password_hash
