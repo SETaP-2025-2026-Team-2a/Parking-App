@@ -1,8 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'data/cubit.dart';
-import 'widgets/parking_timer.dart';
 import 'pages/profile_page.dart';
 import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
