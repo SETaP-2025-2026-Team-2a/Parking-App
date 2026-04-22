@@ -4,7 +4,7 @@ from flask_cors import CORS
 
 from car_park_manager import CarPark
 from search_manager import SearchManager
-from user_manager import UserResource, UsersResource
+from user_manager import UserResource
 from authentication_manager import LoginResource, SignupResource
 from review_manager import ReviewManager
 from session_manager import ParkingSessionManager
