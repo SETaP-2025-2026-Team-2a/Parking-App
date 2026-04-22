@@ -9,6 +9,7 @@ from authentication_manager import LoginResource, SignupResource
 from review_manager import ReviewManager
 from session_manager import ParkingSessionManager
 from payment_manager import Payment
+from car_park_setup import default_car_parks
 
 server= flask.Flask(__name__)
 CORS(server) 
@@ -26,4 +27,6 @@ api.add_resource(Payment, "/payment") # POST process payment
 
 
 if __name__ == '__main__':
+    # default_car_parks()
     server.run(debug=True, host='0.0.0.0', port=8080)
+    

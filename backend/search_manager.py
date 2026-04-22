@@ -1,7 +1,7 @@
 import math
 
 from flask_restful import Resource, reqparse
-from authentication_manager import get_database_connection
+from modules import get_database_connection
 from car_park_manager import CarParkSchema
 
 def to_float(value):
@@ -12,16 +12,16 @@ def to_float(value):
 
 
 def extract_distance(car_park, origin_lon, origin_lat):
-        direct_distance = to_float(car_park.get("distance"))
+        direct_distance = to_float(car_park.get("location"))
         if direct_distance is not None:
             return direct_distance
 
-        car_park_lon = to_float(
-            car_park.get("longitude", car_park.get("lon"))
-        )
-        car_park_lat = to_float(
-            car_park.get("latitude", car_park.get("lattitude", car_park.get("lat")))
-        )
+        location = car_park.get("location", {})
+        # need to split coordinates from GeoJSON format (longitude, latitude)
+        coordinates = location.get("coordinates", [])
+        if len(coordinates) != 2:
+            return None
+        car_park_lon, car_park_lat = coordinates
 
         if car_park_lon is None or car_park_lat is None:
             return None
@@ -73,7 +73,7 @@ class SearchManager(Resource):
         user_longitude = args["longitude"]
 
         supabase = get_database_connection()
-        response = supabase.table("car_parks").select("*").execute()
+        response = supabase.table("carpark").select("*").execute()
 
         if getattr(response, "error", None):
             return {"error": "Failed to fetch car parks"}, 500
