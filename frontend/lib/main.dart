@@ -4,7 +4,9 @@ import 'pages/profile_page.dart';
 import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'search_page.dart' as search;
+import 'search_data/search.dart';
 
 void main() {
   runApp(MyApp(themeManager: ThemeManager()));
@@ -109,11 +111,18 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   static const Duration _extensionDuration = Duration(minutes: 30);
+  static const double _nearbyRadiusKm = 5.0;
+  final SearchService _searchService = SearchService(
+    baseUrl: 'http://localhost:8080',
+  );
 
   late Duration _remainingDuration;
   late Duration _totalDuration;
   Timer? _timer;
   bool _isPaused = false;
+  bool _isLoadingNearby = false;
+  String? _nearbyError;
+  List<CarPark> _nearbyCarParks = [];
 
   @override
   void initState() {
@@ -121,12 +130,73 @@ class _HomePageState extends State<HomePage> {
     _remainingDuration = const Duration(hours: 1, minutes: 0);
     _totalDuration = _remainingDuration;
     _startTimer();
+    _loadNearbyCarParks();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadNearbyCarParks() async {
+    setState(() {
+      _isLoadingNearby = true;
+      _nearbyError = null;
+    });
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are off.');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Location permission denied.');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final results = await _searchService.searchWithinRadius(
+        query: '',
+        longitude: position.longitude,
+        latitude: position.latitude,
+        radiusKm: _nearbyRadiusKm,
+      );
+
+      results.sort((a, b) => a.distance.compareTo(b.distance));
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _nearbyCarParks = results;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _nearbyError = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingNearby = false;
+        });
+      }
+    }
   }
 
   void _startTimer() {
@@ -193,7 +263,6 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hero Zone
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: const [
@@ -207,7 +276,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 24),
-            // Active Stay Widget
             Expanded(
               flex: 3,
               child: ActiveStayWidget(
@@ -219,7 +287,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 16),
-            // Nearby Car Parks
             const Text(
               'Nearby Car Parks',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -227,14 +294,52 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 8),
             Expanded(
               flex: 1,
-              child: ListView.builder(
-                itemCount: 5,
-                itemBuilder: (context, index) {
-                  return const PremiumCard(
-                    locationId: '1234',
-                    name: 'Car Park Name',
-                    distance: '0.5 miles',
-                    price: '£2.50/hr',
+              child: Builder(
+                builder: (context) {
+                  if (_isLoadingNearby) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (_nearbyError != null) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_nearbyError!),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _loadNearbyCarParks,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (_nearbyCarParks.isEmpty) {
+                    return const Center(
+                      child: Text('No nearby car parks found within 5 km'),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: _nearbyCarParks.length,
+                    itemBuilder: (context, index) {
+                      final carPark = _nearbyCarParks[index];
+                      final id = carPark.id == 0 ? index + 1 : carPark.id;
+                      final price =
+                          (carPark.rawData['price'] as num?)?.toDouble() ??
+                          (carPark.rawData['hourly_rate'] as num?)?.toDouble();
+
+                      return PremiumCard(
+                        locationId: 'P$id',
+                        name: carPark.name,
+                        distance: '${carPark.distance.toStringAsFixed(1)} km',
+                        price: price != null
+                            ? '£${price.toStringAsFixed(2)}/hr'
+                            : 'Price n/a',
+                      );
+                    },
                   );
                 },
               ),
