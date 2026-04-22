@@ -1,26 +1,18 @@
 from flask_restful import Resource, reqparse
-from werkzeug.security import generate_password_hash
 from modules import get_database_connection
+from authentication_manager import getUser as auth_getUser
 
     
 
 
 def get_user(email):
     try:
-        supabase = get_database_connection()
-        response = (
-            supabase.table("User")
-            .select("first_name", "last_name", "email")
-            .eq("email", email)
-            .execute()
-        )
-
-        if response.data:
-            user = response.data[0]
+        user = auth_getUser(email=email)
+        if user and user.get("result") is True:
             return {
                 "process": "Get User",
-                "name": user.get("first_name"),
-                "lastname": user.get("last_name"),
+                "name": user.get("first_name") or user.get("name"),
+                "lastname": user.get("last_name") or user.get("lastname"),
                 "email": user.get("email"),
                 "result": True,
             }, 200
@@ -48,7 +40,12 @@ def get_user(email):
 
 def update_user(name, lastname, email=None):
     supabase = get_database_connection()
-    response = supabase.table("User").update({"name": name, "lastname": lastname}).eq("email", email).execute()
+    response = (
+        supabase.table("User")
+        .update({"first_name": name, "last_name": lastname})
+        .eq("email", email)
+        .execute()
+    )
     if response.data:
 
         print(f"Updating user: {name} {lastname}, email: {email}")
@@ -62,42 +59,6 @@ def update_user(name, lastname, email=None):
     }, 404
 
 
-
-def create_user(username, email, password):
-    password_hash = generate_password_hash(password)
-    try:
-        supabase = get_database_connection()
-        response = supabase.table("User").insert({
-            "username": username,  
-            "email": email,
-            "password_hash": password_hash
-        }).execute()
-
-    except Exception as e:
-        print(f"Error occurred while creating user: {e}")
-        return {"process": "Create User", "result": False, "error": f"An error occurred: {e}"}, 500
-
-    if response.error:
-        return {"process": "Create User", "result": False, "error": "Email already exists"}, 409
-    
-    return {
-        "process": "Create User",
-        "result": True,
-        "username": username,
-        "email": response.data[0]["email"],
-    }, 201
-
-
-
-class UsersResource(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("username", type=str, required=True)
-        parser.add_argument("email", type=str, required=True)
-        parser.add_argument("password", type=str, required=True)
-        args = parser.parse_args()
-
-        return create_user(args["username"], args["email"], args["password"])
 
 class UserResource(Resource):
     def get(self, email):
