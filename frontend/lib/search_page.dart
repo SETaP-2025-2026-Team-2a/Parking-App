@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'data/cubit.dart';
+import 'search_data/search.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -23,6 +24,9 @@ class _SearchPageState extends State<SearchPage> {
   final MapController _mapController = MapController();
   final FlutterTts _tts = FlutterTts();
   final DataCubit _dataCubit = DataCubit();
+  final SearchService _searchService = SearchService(
+    baseUrl: 'http://localhost:8080',
+  );
 
   LatLng _startLocation = const LatLng(51.5072, -0.1276);
   LatLng _selectedLocation = const LatLng(51.5072, -0.1276);
@@ -45,6 +49,12 @@ class _SearchPageState extends State<SearchPage> {
   bool _speechEnabled = true;
   String? _errorMessage;
   StreamSubscription<Position>? _positionSubscription;
+
+  // Distance filters for car park search
+  double _minDistance = 0.0;
+  double _maxDistance = 5.0;
+  List<CarPark> _searchedCarParks = [];
+  bool _isSearchingCarParks = false;
 
   @override
   void initState() {
@@ -266,6 +276,13 @@ class _SearchPageState extends State<SearchPage> {
     return 'Now, $instruction.';
   }
 
+  Future<void> _onSearchPressed() async {
+    if (_isSearching || _isSearchingCarParks || _isRouting || _isLocating) {
+      return;
+    }
+    await _searchLocation();
+  }
+
   Future<void> _searchLocation() async {
     final query = _controller.text.trim();
     if (query.isEmpty) {
@@ -318,6 +335,9 @@ class _SearchPageState extends State<SearchPage> {
         _selectedLabel = label;
       });
 
+      // Search for car parks near the selected location
+      await _searchCarParksNearby();
+
       final didLoadRoute = await _loadRoute(_startLocation, newLocation);
       if (didLoadRoute) {
         setState(() {
@@ -334,6 +354,41 @@ class _SearchPageState extends State<SearchPage> {
       if (mounted) {
         setState(() {
           _isSearching = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _routeToCarParkByCoordinates(CarPark carPark) async {
+    setState(() {
+      _isRouting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final newLocation = LatLng(carPark.latitude, carPark.longitude);
+
+      setState(() {
+        _selectedLocation = newLocation;
+        _selectedLabel = carPark.name;
+      });
+
+      final didLoadRoute = await _loadRoute(_startLocation, newLocation);
+      if (didLoadRoute) {
+        setState(() {
+          _followUser = true;
+        });
+        _mapController.move(_startLocation, 16);
+        await _speakNavigationIntro();
+      }
+    } catch (_) {
+      setState(() {
+        _errorMessage = 'Unable to route to this car park right now.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRouting = false;
         });
       }
     }
@@ -400,28 +455,50 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  String _formatCarParkSubtitle(Map<String, dynamic> carPark) {
-    final parts = <String>[];
-    final spaces = carPark['spaces'];
-    final price = carPark['price'];
-    final rating = carPark['avg_rating'] ?? carPark['rating'];
-    final distance = carPark['distance'];
-
-    if (spaces != null) {
-      parts.add('$spaces spaces');
-    }
-    if (price != null) {
-      parts.add('£${(price as num).toStringAsFixed(2)}');
-    }
-    if (rating != null) {
-      parts.add('★ ${(rating as num).toStringAsFixed(1)}');
-    }
-    if (distance != null) {
-      final distanceValue = (distance as num).toDouble();
-      parts.add('${distanceValue.toStringAsFixed(1)} km');
+  Future<void> _searchCarParksNearby() async {
+    if (_isSearchingCarParks) {
+      return;
     }
 
-    return parts.isEmpty ? 'Tap to get directions' : parts.join(' • ');
+    setState(() {
+      _isSearchingCarParks = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final results = await _searchService.searchInDistanceRange(
+        query: '', // Empty query to get all car parks in range
+        longitude: _selectedLocation.longitude,
+        latitude: _selectedLocation.latitude,
+        minDistanceKm: _minDistance,
+        maxDistanceKm: _maxDistance,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _searchedCarParks = results;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = 'Unable to search car parks: ${e.toString()}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearchingCarParks = false;
+        });
+      }
+    }
+  }
+
+  String _formatCarParkSubtitle(CarPark carPark) {
+    return '${carPark.distance.toStringAsFixed(1)} km away';
   }
 
   Future<bool> _loadRoute(LatLng from, LatLng to) async {
@@ -584,7 +661,7 @@ class _SearchPageState extends State<SearchPage> {
                     child: TextField(
                       controller: _controller,
                       textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _searchLocation(),
+                      onSubmitted: (_) => _onSearchPressed(),
                       decoration: InputDecoration(
                         hintText: 'Search location',
                         filled: true,
@@ -606,10 +683,18 @@ class _SearchPageState extends State<SearchPage> {
                   ),
                   const SizedBox(width: 10),
                   FilledButton(
-                    onPressed: (_isSearching || _isRouting || _isLocating)
+                    onPressed:
+                        (_isSearching ||
+                            _isSearchingCarParks ||
+                            _isRouting ||
+                            _isLocating)
                         ? null
-                        : _searchLocation,
-                    child: (_isSearching || _isRouting || _isLocating)
+                        : _onSearchPressed,
+                    child:
+                        (_isSearching ||
+                            _isSearchingCarParks ||
+                            _isRouting ||
+                            _isLocating)
                         ? const SizedBox(
                             width: 18,
                             height: 18,
@@ -762,87 +847,94 @@ class _SearchPageState extends State<SearchPage> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFE0E0E0)),
                   ),
-                  child: BlocBuilder<DataCubit, DataState>(
-                    builder: (context, state) {
-                      if (state is DataFetchLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (state is DataFetchFailed) {
-                        final message = state.message ?? '';
-                        final displayMessage = message.contains('404')
-                            ? 'No Car parks Found'
-                            : (state.message ?? 'Failed to load car parks.');
-                        return Center(child: Text(displayMessage));
-                      }
-
-                      if (state is! DataFetchSuccess ||
-                          state.data?.data.isEmpty == true ||
-                          state.data == null) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('No car park data available.'),
-                              const SizedBox(height: 8),
-                              TextButton(
-                                onPressed: _dataCubit.fetch,
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      final rawItems = state.data!.data;
-                      final carParks = rawItems
-                          .whereType<Map>()
-                          .map((item) => Map<String, dynamic>.from(item))
-                          .toList();
-
-                      if (carParks.isEmpty) {
-                        return const Center(
-                          child: Text('No car park data available.'),
-                        );
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Nearby car parks',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF008752),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // Distance filters
+                      Row(
                         children: [
-                          const Text(
-                            'Nearby car parks',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF008752),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Min: ${_minDistance.toStringAsFixed(1)} km',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                Slider(
+                                  min: 0,
+                                  max: _maxDistance,
+                                  value: _minDistance,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _minDistance = value;
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(width: 16),
                           Expanded(
-                            child: ListView.separated(
-                              itemCount: carParks.length,
-                              separatorBuilder: (_, __) =>
-                                  const Divider(height: 14),
-                              itemBuilder: (context, index) {
-                                final carPark = carParks[index];
-                                final name =
-                                    (carPark['name'] as String?) ?? 'Car park';
-
-                                return ListTile(
-                                  dense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(name),
-                                  subtitle: Text(
-                                    _formatCarParkSubtitle(carPark),
-                                  ),
-                                  trailing: const Icon(Icons.navigation),
-                                  onTap: () => _routeToCarParkByName(name),
-                                );
-                              },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Max: ${_maxDistance.toStringAsFixed(1)} km',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                Slider(
+                                  min: _minDistance,
+                                  max: 50,
+                                  value: _maxDistance,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _maxDistance = value;
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 8),
+                      if (_isSearchingCarParks)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_searchedCarParks.isEmpty)
+                        const Center(
+                          child: Text('No car parks found in this range.'),
+                        )
+                      else
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: _searchedCarParks.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 14),
+                            itemBuilder: (context, index) {
+                              final carPark = _searchedCarParks[index];
+
+                              return ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(carPark.name),
+                                subtitle: Text(_formatCarParkSubtitle(carPark)),
+                                trailing: const Icon(Icons.navigation),
+                                onTap: () =>
+                                    _routeToCarParkByCoordinates(carPark),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
