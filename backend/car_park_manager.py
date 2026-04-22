@@ -15,12 +15,8 @@ class CarParkSchema(Schema):
 
 class CarPark(Resource):
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("carpark_id", type=int, required=True)
-        args = parser.parse_args()
-        
         supabase = get_database_connection()
-        response = supabase.table("carParks").select("name", "spaces", "location").execute()
+        response = supabase.table("carpark").select("name", "space_type", "location", "carpark_id").execute()
         if response.data:
             car_park_data = response.data[0]
             return {

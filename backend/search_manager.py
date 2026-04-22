@@ -51,10 +51,6 @@ class SearchManager(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("query", type=str, required=True, location="args")
-        parser.add_argument("minPrice", type=float, required=True, location="args")
-        parser.add_argument("maxPrice", type=float, required=True, location="args")
-        parser.add_argument("minRating", type=float, required=True, location="args")
-        parser.add_argument("maxRating", type=float, required=True, location="args")
         parser.add_argument("minDistance", type=float, required=True, location="args")
         parser.add_argument("maxDistance", type=float, required=True, location="args")
         parser.add_argument("longitude", type=float, required=True, location="args")
@@ -68,18 +64,10 @@ class SearchManager(Resource):
         if user_latitude is None:
             return {"error": "Either latitude or lattitude is required"}, 400
 
-        if args["minPrice"] > args["maxPrice"]:
-            return {"error": "minPrice cannot be greater than maxPrice"}, 400
-        if args["minRating"] > args["maxRating"]:
-            return {"error": "minRating cannot be greater than maxRating"}, 400
         if args["minDistance"] > args["maxDistance"]:
             return {"error": "minDistance cannot be greater than maxDistance"}, 400
 
         query = args["query"].strip().lower()
-        min_price = args["minPrice"]
-        max_price = args["maxPrice"]
-        min_rating = args["minRating"]
-        max_rating = args["maxRating"]
         min_distance = args["minDistance"]
         max_distance = args["maxDistance"]
         user_longitude = args["longitude"]
@@ -96,18 +84,12 @@ class SearchManager(Resource):
             if query and query not in name.lower():
                 continue
 
-            price = to_float(car_park.get("price"))
-            rating = to_float(car_park.get("avg_rating", car_park.get("rating")))
             distance = extract_distance(
                 car_park=car_park,
                 origin_lon=user_longitude,
                 origin_lat=user_latitude,
             )
 
-            if not within_range(price, min_price, max_price):
-                continue
-            if not within_range(rating, min_rating, max_rating):
-                continue
             if not within_range(distance, min_distance, max_distance):
                 continue
 
