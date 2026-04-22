@@ -46,7 +46,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(const HistoryTabContent()));
       final textField = find.byType(TextField);
       await tester.tap(textField);
-      await tester.typeText(textField, 'Great spot!');
+      await tester.enterText(textField, 'Great spot!');
       expect(find.text('Great spot!'), findsOneWidget);
     });
 
@@ -63,7 +63,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(const HistoryTabContent()));
       final textField = find.byType(TextField);
       await tester.tap(textField);
-      await tester.typeText(textField, 'Excellent location!');
+      await tester.enterText(textField, 'Excellent location!');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pump();
       expect(find.text('Review submitted!'), findsOneWidget);
@@ -73,7 +73,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(const HistoryTabContent()));
       final textField = find.byType(TextField);
       await tester.tap(textField);
-      await tester.typeText(textField, 'Test');
+      await tester.enterText(textField, 'Test');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pump();
       expect(find.text('Test'), findsNothing);
@@ -88,7 +88,7 @@ void main() {
 
       final textField = find.byType(TextField);
       await tester.tap(textField);
-      await tester.typeText(textField, 'Good');
+      await tester.enterText(textField, 'Good');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pump();
 
@@ -111,7 +111,7 @@ void main() {
       await tester.pumpWidget(createTestWidget(const HistoryTabContent()));
       final textField = find.byType(TextField);
       await tester.tap(textField);
-      await tester.typeText(textField, 'New review');
+      await tester.enterText(textField, 'New review');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pump();
       expect(find.text('You'), findsOneWidget);
