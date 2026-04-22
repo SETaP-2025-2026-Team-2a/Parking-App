@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+
+import 'data/cubit.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -19,6 +22,7 @@ class _SearchPageState extends State<SearchPage> {
   final TextEditingController _controller = TextEditingController();
   final MapController _mapController = MapController();
   final FlutterTts _tts = FlutterTts();
+  final DataCubit _dataCubit = DataCubit();
 
   LatLng _startLocation = const LatLng(51.5072, -0.1276);
   LatLng _selectedLocation = const LatLng(51.5072, -0.1276);
@@ -47,12 +51,14 @@ class _SearchPageState extends State<SearchPage> {
     super.initState();
     _configureTts();
     _setUserLocation();
+    _dataCubit.fetch();
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
     _tts.stop();
+    _dataCubit.close();
     _controller.dispose();
     super.dispose();
   }
@@ -333,6 +339,91 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  Future<void> _routeToCarParkByName(String name) async {
+    setState(() {
+      _isRouting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+        'q': name,
+        'format': 'jsonv2',
+        'limit': '1',
+      });
+
+      final response = await http.get(
+        uri,
+        headers: const {
+          'User-Agent': 'setap-parking-app/1.0',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Search failed with status ${response.statusCode}');
+      }
+
+      final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+      if (data.isEmpty) {
+        throw Exception('No location found for car park');
+      }
+
+      final result = data.first as Map<String, dynamic>;
+      final lat = double.parse(result['lat'] as String);
+      final lon = double.parse(result['lon'] as String);
+      final newLocation = LatLng(lat, lon);
+
+      setState(() {
+        _selectedLocation = newLocation;
+        _selectedLabel = name;
+      });
+
+      final didLoadRoute = await _loadRoute(_startLocation, newLocation);
+      if (didLoadRoute) {
+        setState(() {
+          _followUser = true;
+        });
+        _mapController.move(_startLocation, 16);
+        await _speakNavigationIntro();
+      }
+    } catch (_) {
+      setState(() {
+        _errorMessage = 'Unable to route to this car park right now.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRouting = false;
+        });
+      }
+    }
+  }
+
+  String _formatCarParkSubtitle(Map<String, dynamic> carPark) {
+    final parts = <String>[];
+    final spaces = carPark['spaces'];
+    final price = carPark['price'];
+    final rating = carPark['avg_rating'] ?? carPark['rating'];
+    final distance = carPark['distance'];
+
+    if (spaces != null) {
+      parts.add('$spaces spaces');
+    }
+    if (price != null) {
+      parts.add('£${(price as num).toStringAsFixed(2)}');
+    }
+    if (rating != null) {
+      parts.add('★ ${(rating as num).toStringAsFixed(1)}');
+    }
+    if (distance != null) {
+      final distanceValue = (distance as num).toDouble();
+      parts.add('${distanceValue.toStringAsFixed(1)} km');
+    }
+
+    return parts.isEmpty ? 'Tap to get directions' : parts.join(' • ');
+  }
+
   Future<bool> _loadRoute(LatLng from, LatLng to) async {
     setState(() {
       _isRouting = true;
@@ -475,207 +566,252 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search'),
-        backgroundColor: Colors.white,
-        elevation: 1,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _searchLocation(),
-                    decoration: InputDecoration(
-                      hintText: 'Search location',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+    return BlocProvider.value(
+      value: _dataCubit,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Search'),
+          backgroundColor: Colors.white,
+          elevation: 1,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => _searchLocation(),
+                      decoration: InputDecoration(
+                        hintText: 'Search location',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE0E0E0),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE0E0E0),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                FilledButton(
-                  onPressed: (_isSearching || _isRouting || _isLocating)
-                      ? null
-                      : _searchLocation,
-                  child: (_isSearching || _isRouting || _isLocating)
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Go'),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: () => _setSpeechEnabled(!_speechEnabled),
-                  tooltip: _speechEnabled
-                      ? 'Turn speech off'
-                      : 'Turn speech on',
-                  icon: Icon(
-                    _speechEnabled ? Icons.volume_up : Icons.volume_off,
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: (_isSearching || _isRouting || _isLocating)
+                        ? null
+                        : _searchLocation,
+                    child: (_isSearching || _isRouting || _isLocating)
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Go'),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: () {
-                    setState(() {
-                      _followUser = !_followUser;
-                    });
-                    if (_followUser) {
-                      _mapController.move(_startLocation, 16);
-                    }
-                  },
-                  tooltip: _followUser
-                      ? 'Following your location'
-                      : 'Center on you',
-                  icon: Icon(
-                    _followUser ? Icons.gps_fixed : Icons.gps_not_fixed,
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: () => _setSpeechEnabled(!_speechEnabled),
+                    tooltip: _speechEnabled
+                        ? 'Turn speech off'
+                        : 'Turn speech on',
+                    icon: Icon(
+                      _speechEnabled ? Icons.volume_up : Icons.volume_off,
+                    ),
                   ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: () {
+                      setState(() {
+                        _followUser = !_followUser;
+                      });
+                      if (_followUser) {
+                        _mapController.move(_startLocation, 16);
+                      }
+                    },
+                    tooltip: _followUser
+                        ? 'Following your location'
+                        : 'Center on you',
+                    icon: Icon(
+                      _followUser ? Icons.gps_fixed : Icons.gps_not_fixed,
+                    ),
+                  ),
+                ],
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.redAccent),
                 ),
               ],
-            ),
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.redAccent),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Expanded(
-              flex: 3,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: _selectedLocation,
-                      initialZoom: 13,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                        subdomains: const ['a', 'b', 'c', 'd'],
-                        retinaMode: RetinaMode.isHighDensity(context),
-                        userAgentPackageName: 'com.example.setap',
-                      ),
-                      if (_routePoints.isNotEmpty)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: _routePoints,
-                              color: Colors.white,
-                              strokeWidth: 9,
-                            ),
-                            Polyline(
-                              points: _routePoints,
-                              color: const Color(0xFF008752),
-                              strokeWidth: 5,
-                            ),
-                          ],
-                        ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: _startLocation,
-                            width: 22,
-                            height: 22,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.blue,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 3,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Marker(
-                            point: _selectedLocation,
-                            width: 42,
-                            height: 42,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF008752),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 3,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.navigation,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      RichAttributionWidget(
-                        alignment: AttributionAlignment.bottomLeft,
-                        attributions: [
-                          TextSourceAttribution(
-                            '© OpenStreetMap contributors © CARTO',
-                          ),
-                        ],
+              const SizedBox(height: 12),
+              Expanded(
+                flex: 3,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x14000000),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _selectedLocation,
+                        initialZoom: 13,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                          subdomains: const ['a', 'b', 'c', 'd'],
+                          retinaMode: RetinaMode.isHighDensity(context),
+                          userAgentPackageName: 'com.example.setap',
+                        ),
+                        if (_routePoints.isNotEmpty)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: _routePoints,
+                                color: Colors.white,
+                                strokeWidth: 9,
+                              ),
+                              Polyline(
+                                points: _routePoints,
+                                color: const Color(0xFF008752),
+                                strokeWidth: 5,
+                              ),
+                            ],
+                          ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: _startLocation,
+                              width: 22,
+                              height: 22,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.blue,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Marker(
+                              point: _selectedLocation,
+                              width: 42,
+                              height: 42,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF008752),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.navigation,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        RichAttributionWidget(
+                          alignment: AttributionAlignment.bottomLeft,
+                          attributions: [
+                            TextSourceAttribution(
+                              '© OpenStreetMap contributors © CARTO',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              flex: 2,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                ),
-                child: _directions.isEmpty
-                    ? const Center(
-                        child: Text('Search a destination to show directions.'),
-                      )
-                    : Column(
+              const SizedBox(height: 12),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                  ),
+                  child: BlocBuilder<DataCubit, DataState>(
+                    builder: (context, state) {
+                      if (state is DataFetchLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (state is DataFetchFailed) {
+                        final message = state.message ?? '';
+                        final displayMessage = message.contains('404')
+                            ? 'No Car parks Found'
+                            : (state.message ?? 'Failed to load car parks.');
+                        return Center(child: Text(displayMessage));
+                      }
+
+                      if (state is! DataFetchSuccess ||
+                          state.data?.data.isEmpty == true ||
+                          state.data == null) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('No car park data available.'),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: _dataCubit.fetch,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final rawItems = state.data!.data;
+                      final carParks = rawItems
+                          .whereType<Map>()
+                          .map((item) => Map<String, dynamic>.from(item))
+                          .toList();
+
+                      if (carParks.isEmpty) {
+                        return const Center(
+                          child: Text('No car park data available.'),
+                        );
+                      }
+
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Route • ${_formatDistance(_routeDistanceMeters)} • ${_formatDuration(_routeDurationSeconds)}',
-                            style: const TextStyle(
+                          const Text(
+                            'Nearby car parks',
+                            style: TextStyle(
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF008752),
                             ),
@@ -683,22 +819,35 @@ class _SearchPageState extends State<SearchPage> {
                           const SizedBox(height: 8),
                           Expanded(
                             child: ListView.separated(
-                              itemCount: _directions.length,
+                              itemCount: carParks.length,
                               separatorBuilder: (_, __) =>
                                   const Divider(height: 14),
                               itemBuilder: (context, index) {
-                                return Text(
-                                  '${index + 1}. ${_directions[index]}',
-                                  style: const TextStyle(fontSize: 13),
+                                final carPark = carParks[index];
+                                final name =
+                                    (carPark['name'] as String?) ?? 'Car park';
+
+                                return ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(name),
+                                  subtitle: Text(
+                                    _formatCarParkSubtitle(carPark),
+                                  ),
+                                  trailing: const Icon(Icons.navigation),
+                                  onTap: () => _routeToCarParkByName(name),
                                 );
                               },
                             ),
                           ),
                         ],
-                      ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
