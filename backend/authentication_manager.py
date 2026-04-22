@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 import os
 from datetime import datetime, timedelta, timezone
 import jwt
@@ -21,8 +21,8 @@ def create_session_token(user):
     now = datetime.now(timezone.utc)
     payload = {
         "sub": f"{user['email']}",
-        "name": user["name"],
-        "lastname": user["lastname"],
+        "name": user["first_name"],
+        "lastname": user["last_name"],
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=JWT_EXPIRES_MINUTES)).timestamp()),
     }
@@ -35,7 +35,7 @@ def get_database_connection():
 def getUser(email=None):
     try:
         supabase = get_database_connection()
-        response = supabase.table("users").select("*").eq("email", email).execute()
+        response = supabase.table("User").select("*").eq("email", email).execute()
         if response.error:
             print(f"Error fetching user from database: {response.error.message}")
             return {
@@ -88,6 +88,54 @@ def validateUser(email, password):
         return {"process": "Sign In", "error": "An error occurred during authentication"}, 500
 
 
+def createUserAccount(name, lastname, email, password):
+    try:
+        existing_user = getUser(email=email)
+        if existing_user and existing_user.get("result") is True:
+            return {
+                "process": "Sign Up",
+                "result": False,
+                "error": "Email already exists",
+            }, 409
+
+        password_hash = generate_password_hash(password)
+        supabase = get_database_connection()
+        response = (
+            supabase.table("User")
+            .insert(
+                {
+                    "first_name": name,
+                    "last_name": lastname,
+                    "email": email,
+                    "password_hash": password_hash,
+                }
+            )
+            .execute()
+        )
+
+        if getattr(response, "error", None):
+            return {
+                "process": "Sign Up",
+                "result": False,
+                "error": "Failed to create account",
+            }, 500
+
+        return {
+            "process": "Sign Up",
+            "result": True,
+            "name": name,
+            "lastname": lastname,
+            "email": email,
+        }, 201
+    except Exception as e:
+        print(f"Error occurred during sign up: {e}")
+        return {
+            "process": "Sign Up",
+            "result": False,
+            "error": "An error occurred during sign up",
+        }, 500
+
+
 def deleteUser(email, password):
     try:
         user = getUser(email=email)
@@ -99,7 +147,7 @@ def deleteUser(email, password):
         print(f"Deleting user: {user['name']}")
 
         supabase = get_database_connection()
-        response = supabase.table("users").delete().eq("email", email).execute()
+        response = supabase.table("User").delete().eq("email", email).execute()
         if response.error:
             print(f"Error deleting user from database: {response.error.message}")
             return {"process": "Delete User", "error": "An error occurred while deleting the user"}, 500
@@ -131,3 +179,20 @@ class LoginResource(Resource):
         args = parser.parse_args()
         
         return deleteUser(args["email"], args["password"])
+
+
+class SignupResource(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("name", type=str, required=True)
+        parser.add_argument("lastname", type=str, required=False, default="")
+        parser.add_argument("email", type=str, required=True)
+        parser.add_argument("password", type=str, required=True)
+        args = parser.parse_args()
+
+        return createUserAccount(
+            args["name"],
+            args["lastname"],
+            args["email"],
+            args["password"],
+        )
