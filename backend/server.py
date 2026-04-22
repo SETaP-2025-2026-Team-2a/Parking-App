@@ -16,7 +16,6 @@ api = Api(server)
 
 api.add_resource(CarPark, '/car-park') # GET car park
 api.add_resource(SearchManager, '/search') # GET search query
-api.add_resource(UsersResource, '/users')  # POST create
 api.add_resource(UserResource, '/users/<string:email>') # GET read, PUT update
 api.add_resource(LoginResource, "/login") # POST login
 api.add_resource(SignupResource, "/signup") # POST create account
