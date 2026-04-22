@@ -19,10 +19,12 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 def create_session_token(user):
     now = datetime.now(timezone.utc)
+    first_name = user.get("first_name") or user.get("name")
+    last_name = user.get("last_name") or user.get("lastname")
     payload = {
         "sub": f"{user['email']}",
-        "name": user["first_name"],
-        "lastname": user["last_name"],
+        "name": first_name,
+        "lastname": last_name,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=JWT_EXPIRES_MINUTES)).timestamp()),
     }
@@ -44,11 +46,14 @@ def getUser(email=None):
                 "error": "An error occurred while fetching the user"
             }
         if response.data:
+            user = response.data[0]
             return {
-                "name": response.data[0]["name"],
-                "lastname": response.data[0]["lastname"],
-                "email": response.data[0]["email"],
-                "password_hash": response.data[0]["password_hash"],
+                "first_name": user.get("first_name") or user.get("name"),
+                "last_name": user.get("last_name") or user.get("lastname"),
+                "name": user.get("first_name") or user.get("name"),
+                "lastname": user.get("last_name") or user.get("lastname"),
+                "email": user.get("email"),
+                "password_hash": user.get("password_hash"),
                 "result": True
             }
         return {
@@ -77,8 +82,10 @@ def validateUser(email, password):
         return {
             "process": "Sign In",
             "result": True,
-            "name": user["name"],
-            "lastname": user["lastname"],
+            "first_name": user.get("first_name") or user.get("name"),
+            "last_name": user.get("last_name") or user.get("lastname"),
+            "name": user.get("first_name") or user.get("name"),
+            "lastname": user.get("last_name") or user.get("lastname"),
             "access_token": token,
             "token_type": "Bearer",
             "expires_in": JWT_EXPIRES_MINUTES * 60,
@@ -123,6 +130,8 @@ def createUserAccount(name, lastname, email, password):
         return {
             "process": "Sign Up",
             "result": True,
+            "first_name": name,
+            "last_name": lastname,
             "name": name,
             "lastname": lastname,
             "email": email,
