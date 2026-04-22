@@ -55,5 +55,5 @@ class Payment(Resource):
         
 
         return {
-            "message": f"Payment of ${amount} for user {user_id} processed successfully."
+            "message": f"Payment of ${amount} for user {args['user_id']} processed successfully."
         }, 200
