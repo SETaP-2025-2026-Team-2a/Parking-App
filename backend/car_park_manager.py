@@ -20,7 +20,7 @@ class CarPark(Resource):
         args = parser.parse_args()
         
         supabase = get_database_connection()
-        response = supabase.table("car_parks").select("name", "spaces", "distance", "avg_rating").eq("carpark_id", args["carpark_id"]).execute()
+        response = supabase.table("carParks").select("name", "spaces", "location").execute()
         if response.data:
             car_park_data = response.data[0]
             return {
@@ -34,16 +34,14 @@ class CarPark(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("name", type=str, required=True)
         parser.add_argument("spaces", type=int, required=True)
-        parser.add_argument("distance", type=float, required=True)
-        parser.add_argument("avg_rating", type=float, required=True)
+        parser.add_argument("location", type=float, required=True)
         args = parser.parse_args()
 
         supabase = get_database_connection()
-        response = supabase.table("car_parks").insert({
+        response = supabase.table("carParks").insert({
             "name": args["name"],
             "spaces": args["spaces"],
-            "distance": args["distance"],
-            "avg_rating": args["avg_rating"]
+            "location": args["location"]
         }).execute()
 
         if response.error:
