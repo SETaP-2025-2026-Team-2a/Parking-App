@@ -1,35 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:parkingapp/user_addition/dummy_auth.dart';
+import 'package:parkingapp/user_addition/user_model.dart';
 
 // Profile Tab Content
 class ProfileTabContent extends StatefulWidget {
-  const ProfileTabContent({super.key});
+  final AuthSession session;
+
+  const ProfileTabContent({super.key, required this.session});
 
   @override
   State<ProfileTabContent> createState() => _ProfileTabContentState();
 }
 
 class _ProfileTabContentState extends State<ProfileTabContent> {
-  // Sample data - in real app, this would come from a database
-  final List<Map<String, String>> _vehicles = [
-    {'nickname': 'My Car', 'vrm': 'ABC 123', 'type': 'Personal'},
-    {'nickname': 'Work Van', 'vrm': 'XYZ 789', 'type': 'Work'},
-  ];
+  final List<Map<String, String>> _vehicles = [];
 
-  final List<Map<String, String>> _paymentMethods = [
-    {'type': 'Visa', 'last4': '4242', 'expiry': '12/26'},
-    {'type': 'Mastercard', 'last4': '8888', 'expiry': '08/27'},
-  ];
+  final List<Map<String, String>> _paymentMethods = [];
 
-  String _userName = 'John Doe';
-  String _userEmail = 'john.doe@example.com';
+  late String _userName;
+  late String _userEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    _userName = '${widget.session.name} ${widget.session.lastname}'.trim();
+    _userEmail = widget.session.email;
+    _loadDummyProfile();
+  }
+
+  Future<void> _loadDummyProfile() async {
+    try {
+      final profile = await getDummyUserProfile(email: widget.session.email);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _userName = '${profile.name} ${profile.lastname}'.trim();
+        _userEmail = profile.email;
+        _vehicles
+          ..clear()
+          ..addAll(
+            profile.vehicles.map(
+              (vehicle) => {
+                'nickname': vehicle.registration,
+                'vrm': vehicle.registration,
+                'type': vehicle.type,
+              },
+            ),
+          );
+        _paymentMethods
+          ..clear()
+          ..addAll(getDummyPaymentMethods(email: widget.session.email));
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _vehicles.clear();
+        _paymentMethods.clear();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Profile'), centerTitle: true),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -53,12 +92,21 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
                     bottom: 0,
                     right: 0,
                     child: Container(
-                      decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
                       child: IconButton(
-                        icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        icon: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Change profile picture')),
+                            const SnackBar(
+                              content: Text('Change profile picture'),
+                            ),
                           );
                         },
                       ),
@@ -68,9 +116,15 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(_userName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              _userName,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
-            Text(_userEmail, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+            Text(
+              _userEmail,
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
             const SizedBox(height: 24),
 
             // Personal Information Section
@@ -149,7 +203,11 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
     );
   }
 
-  Widget _buildSectionHeaderWithAction(String title, IconData icon, VoidCallback onTap) {
+  Widget _buildSectionHeaderWithAction(
+    String title,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -224,7 +282,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
   Widget _buildPaymentTile(Map<String, String> payment) {
     IconData cardIcon;
     Color cardColor;
-    
+
     switch (payment['type']) {
       case 'Visa':
         cardIcon = Icons.credit_card;
@@ -383,10 +441,13 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
           ),
           TextButton(
             onPressed: () {
-              if (newPasswordController.text == confirmPasswordController.text) {
+              if (newPasswordController.text ==
+                  confirmPasswordController.text) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password changed successfully')),
+                  const SnackBar(
+                    content: Text('Password changed successfully'),
+                  ),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -440,7 +501,10 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
                   border: OutlineInputBorder(),
                 ),
                 items: ['Personal', 'Work', 'Family', 'Other']
-                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    .map(
+                      (type) =>
+                          DropdownMenuItem(value: type, child: Text(type)),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setDialogState(() {
@@ -457,7 +521,8 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
             ),
             TextButton(
               onPressed: () {
-                if (nicknameController.text.isNotEmpty && vrmController.text.isNotEmpty) {
+                if (nicknameController.text.isNotEmpty &&
+                    vrmController.text.isNotEmpty) {
                   setState(() {
                     _vehicles.add({
                       'nickname': nicknameController.text,
@@ -516,7 +581,10 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
                   border: OutlineInputBorder(),
                 ),
                 items: ['Personal', 'Work', 'Family', 'Other']
-                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    .map(
+                      (type) =>
+                          DropdownMenuItem(value: type, child: Text(type)),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setDialogState(() {
@@ -556,7 +624,9 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Vehicle'),
-        content: Text('Are you sure you want to delete ${vehicle['nickname']}?'),
+        content: Text(
+          'Are you sure you want to delete ${vehicle['nickname']}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -601,9 +671,21 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
                     labelText: 'Payment Type',
                     border: OutlineInputBorder(),
                   ),
-                  items: ['Visa', 'Mastercard', 'PayPal', 'Apple Pay', 'Google Pay']
-                      .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                      .toList(),
+                  items:
+                      [
+                            'Visa',
+                            'Mastercard',
+                            'PayPal',
+                            'Apple Pay',
+                            'Google Pay',
+                          ]
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type),
+                            ),
+                          )
+                          .toList(),
                   onChanged: (value) {
                     setDialogState(() {
                       paymentType = value!;
@@ -662,17 +744,22 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
             ),
             TextButton(
               onPressed: () {
-                if (cardNumberController.text.length >= 4 && expiryController.text.isNotEmpty) {
+                if (cardNumberController.text.length >= 4 &&
+                    expiryController.text.isNotEmpty) {
                   setState(() {
                     _paymentMethods.add({
                       'type': paymentType,
-                      'last4': cardNumberController.text.substring(cardNumberController.text.length - 4),
+                      'last4': cardNumberController.text.substring(
+                        cardNumberController.text.length - 4,
+                      ),
                       'expiry': expiryController.text,
                     });
                   });
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Payment method added successfully')),
+                    const SnackBar(
+                      content: Text('Payment method added successfully'),
+                    ),
                   );
                 }
               },
@@ -689,7 +776,9 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Payment Method'),
-        content: Text('Are you sure you want to delete ${payment['type']} •••• ${payment['last4']}?'),
+        content: Text(
+          'Are you sure you want to delete ${payment['type']} •••• ${payment['last4']}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -702,7 +791,9 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
               });
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Payment method deleted successfully')),
+                const SnackBar(
+                  content: Text('Payment method deleted successfully'),
+                ),
               );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

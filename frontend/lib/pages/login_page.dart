@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:parkingapp/pages/signup_page.dart';
-import 'package:parkingapp/user_addition/user_add.dart';
+import 'package:parkingapp/user_addition/dummy_auth.dart';
+import 'package:parkingapp/user_addition/user_model.dart';
 
 //overall box
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final ValueChanged<AuthSession>? onLoginSuccess;
+
+  const LoginPage({super.key, this.onLoginSuccess});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -24,10 +27,11 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Enter your email.')));
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter your email and password.')),
+      );
       return;
     }
 
@@ -36,27 +40,23 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final exists = await getUserByEmail(email: email);
+      final session = await loginDummyUser(email: email, password: password);
       if (!mounted) {
         return;
       }
 
-      if (!exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No account found for this email.')),
-        );
+      if (widget.onLoginSuccess != null) {
+        widget.onLoginSuccess!(session);
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email found. You can continue login.')),
-      );
-    } catch (_) {
+      Navigator.of(context).pop(session);
+    } catch (e) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not verify email right now.')),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     } finally {
       if (mounted) {
@@ -122,6 +122,12 @@ class _LoginPageState extends State<LoginPage> {
                 obscureText: true,
               ),
               const SizedBox(height: 24),
+              const Text(
+                'Dummy login:\nemma@parking.test / password123',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
               // Login Button
               SizedBox(
                 width: double.infinity,
