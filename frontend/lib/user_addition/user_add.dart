@@ -100,3 +100,35 @@ Future<UserProfileResponse> getUserProfile({required String email}) async {
   final message = (body['error'] as String?) ?? 'Could not load user profile';
   throw Exception(message);
 }
+
+Future<void> updateUserProfile({
+  required String email,
+  required String name,
+  required String lastname,
+  required String updatedEmail,
+  required List<Map<String, String>> vehicles,
+  required List<Map<String, String>> paymentMethods,
+}) async {
+  final encodedEmail = Uri.encodeComponent(email.trim());
+  final uri = Uri.parse('$_baseUrl/users/$encodedEmail');
+
+  final response = await http.put(
+    uri,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'name': name,
+      'lastname': lastname,
+      'email': updatedEmail,
+      'vehicles': vehicles,
+      'payment_methods': paymentMethods,
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    return;
+  }
+
+  throw Exception(
+    'Failed to update user: ${response.statusCode} ${response.body}',
+  );
+}
