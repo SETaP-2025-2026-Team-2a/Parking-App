@@ -48,6 +48,7 @@ def getUser(email=None):
         if response.data:
             user = response.data[0]
             return {
+                "user_id": user.get("user_id"),
                 "first_name": user.get("first_name") or user.get("name"),
                 "last_name": user.get("last_name") or user.get("lastname"),
                 "name": user.get("first_name") or user.get("name"),
@@ -82,6 +83,8 @@ def validateUser(email, password):
         return {
             "process": "Sign In",
             "result": True,
+            "user_id": user.get("user_id"),
+            "email": user.get("email"),
             "first_name": user.get("first_name") or user.get("name"),
             "last_name": user.get("last_name") or user.get("lastname"),
             "name": user.get("first_name") or user.get("name"),
@@ -127,9 +130,12 @@ def createUserAccount(name, lastname, email, password):
                 "error": "Failed to create account",
             }, 500
 
+        created_user = response.data[0] if response.data else {}
+
         return {
             "process": "Sign Up",
             "result": True,
+            "user_id": created_user.get("user_id"),
             "first_name": name,
             "last_name": lastname,
             "name": name,
