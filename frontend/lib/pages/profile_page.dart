@@ -20,6 +20,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
 
   late String _userName;
   late String _userEmail;
+  late String _updateLookupEmail;
   bool _isUpdating = false;
 
   @override
@@ -27,6 +28,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
     super.initState();
     _userName = '${widget.session.name} ${widget.session.lastname}'.trim();
     _userEmail = widget.session.email;
+    _updateLookupEmail = widget.session.email;
     _loadDummyProfile();
   }
 
@@ -63,10 +65,15 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
 
     try {
       await updateUserProfile(
-        email: widget.session.email,
+        email: _updateLookupEmail,
         name: splitName.firstName,
         lastname: splitName.lastName,
+        updatedEmail: _userEmail.trim(),
+        vehicles: _vehicles,
+        paymentMethods: _paymentMethods,
       );
+
+      _updateLookupEmail = _userEmail.trim();
 
       if (!mounted) {
         return;
