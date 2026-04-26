@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'pages/login_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'search_page.dart' as search;
 import 'search_data/search.dart';
+import 'user_addition/user_model.dart';
 
 void main() {
   runApp(MyApp(themeManager: ThemeManager()));
@@ -23,6 +25,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late ThemeManager _themeManager;
+  AuthSession? _session;
 
   @override
   void initState() {
@@ -41,6 +44,18 @@ class _MyAppState extends State<MyApp> {
     setState(() {});
   }
 
+  void _handleLoginSuccess(AuthSession session) {
+    setState(() {
+      _session = session;
+    });
+  }
+
+  void _handleLogout() {
+    setState(() {
+      _session = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -48,14 +63,23 @@ class _MyAppState extends State<MyApp> {
       theme: _themeManager.lightTheme,
       darkTheme: _themeManager.darkTheme,
       themeMode: _themeManager.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const MainNavigation(),
+      home: _session == null
+          ? LoginPage(onLoginSuccess: _handleLoginSuccess)
+          : MainNavigation(session: _session!, onLogout: _handleLogout),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  final AuthSession session;
+  final VoidCallback onLogout;
+
+  const MainNavigation({
+    super.key,
+    required this.session,
+    required this.onLogout,
+  });
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -63,14 +87,6 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    const HomePage(),
-    const search.SearchPage(),
-    const HistoryPageWrapper(),
-    const ProfilePageWrapper(),
-    const SettingsTabContent(),
-  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -80,8 +96,16 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const HomePage(),
+      const search.SearchPage(),
+      const HistoryPageWrapper(),
+      ProfilePageWrapper(session: widget.session),
+      SettingsTabContent(onLogout: widget.onLogout),
+    ];
+
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -543,10 +567,12 @@ class HistoryPageWrapper extends StatelessWidget {
 
 // Wrapper for ProfilePage
 class ProfilePageWrapper extends StatelessWidget {
-  const ProfilePageWrapper({super.key});
+  final AuthSession session;
+
+  const ProfilePageWrapper({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
-    return const ProfileTabContent();
+    return ProfileTabContent(session: session);
   }
 }
