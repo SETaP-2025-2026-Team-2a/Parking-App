@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:parkingapp/user_addition/user_model.dart';
 
+const String _baseUrl = 'http://127.0.0.1:8080';
+
 Future<bool> getUserByEmail({required String email}) async {
   final encodedEmail = Uri.encodeComponent(email.trim());
-  final uri = Uri.parse('http://127.0.0.1:8080/users/$encodedEmail');
+  final uri = Uri.parse('$_baseUrl/users/$encodedEmail');
 
   final response = await http.get(
     uri,
@@ -25,7 +27,7 @@ Future<bool> getUserByEmail({required String email}) async {
 }
 
 Future<void> createUser({required CreateUserRequest request}) async {
-  final uri = Uri.parse('http://127.0.0.1:8080/signup');
+  final uri = Uri.parse('$_baseUrl/signup');
 
   final response = await http.post(
     uri,
@@ -49,4 +51,52 @@ Future<void> createUser({required CreateUserRequest request}) async {
       'Failed to create user: ${response.statusCode} ${response.body}',
     );
   }
+}
+
+Future<AuthSession> loginUser({
+  required String email,
+  required String password,
+}) async {
+  final uri = Uri.parse('$_baseUrl/login');
+
+  final response = await http.post(
+    uri,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'email': email,
+      'password': password,
+    }),
+  );
+
+  final body = response.body.isNotEmpty
+      ? jsonDecode(response.body) as Map<String, dynamic>
+      : <String, dynamic>{};
+
+  if (response.statusCode == 200 && body['result'] == true) {
+    return AuthSession.fromJson(body);
+  }
+
+  final message = (body['error'] as String?) ?? 'Invalid credentials';
+  throw Exception(message);
+}
+
+Future<UserProfileResponse> getUserProfile({required String email}) async {
+  final encodedEmail = Uri.encodeComponent(email.trim());
+  final uri = Uri.parse('$_baseUrl/users/$encodedEmail');
+
+  final response = await http.get(
+    uri,
+    headers: {'Content-Type': 'application/json'},
+  );
+
+  final body = response.body.isNotEmpty
+      ? jsonDecode(response.body) as Map<String, dynamic>
+      : <String, dynamic>{};
+
+  if (response.statusCode == 200 && body['result'] == true) {
+    return UserProfileResponse.fromJson(body);
+  }
+
+  final message = (body['error'] as String?) ?? 'Could not load user profile';
+  throw Exception(message);
 }
