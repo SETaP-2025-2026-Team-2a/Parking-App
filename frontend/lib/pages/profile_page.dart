@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:parkingapp/user_addition/dummy_auth.dart';
+import 'package:parkingapp/user_addition/user_add.dart';
 import 'package:parkingapp/user_addition/user_model.dart';
 
 // Profile Tab Content
@@ -19,6 +20,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
 
   late String _userName;
   late String _userEmail;
+  bool _isUpdating = false;
 
   @override
   void initState() {
@@ -26,6 +28,70 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
     _userName = '${widget.session.name} ${widget.session.lastname}'.trim();
     _userEmail = widget.session.email;
     _loadDummyProfile();
+  }
+
+  ({String firstName, String lastName}) _splitName(String fullName) {
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) {
+      return (firstName: '', lastName: '');
+    }
+    if (parts.length == 1) {
+      return (firstName: parts.first, lastName: '');
+    }
+    return (firstName: parts.first, lastName: parts.sublist(1).join(' '));
+  }
+
+  Future<void> _handleUpdateProfile() async {
+    final splitName = _splitName(_userName);
+
+    if (splitName.firstName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid name before updating.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isUpdating = true;
+    });
+
+    try {
+      await updateUserProfile(
+        email: widget.session.email,
+        name: splitName.firstName,
+        lastname: splitName.lastName,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated on backend successfully.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadDummyProfile() async {
@@ -146,6 +212,30 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
               title: 'Password',
               subtitle: '••••••••',
               onTap: () => _showChangePasswordDialog(),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isUpdating ? null : _handleUpdateProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF008752),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: _isUpdating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Update Profile'),
+                ),
+              ),
             ),
             const Divider(height: 32),
 

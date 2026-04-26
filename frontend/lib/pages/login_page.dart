@@ -123,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Dummy login:\nemma@parking.test / password123',
+                'Dummy login:\nTest@parking.test / password123',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),

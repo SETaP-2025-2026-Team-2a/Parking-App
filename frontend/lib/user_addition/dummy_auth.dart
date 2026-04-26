@@ -3,11 +3,11 @@ import 'package:parkingapp/user_addition/user_model.dart';
 const List<Map<String, dynamic>> _dummyUsers = [
   {
     'user_id': 1,
-    'name': 'Emma',
-    'lastname': 'Driver',
-    'email': 'emma@parking.test',
+    'name': 'Test',
+    'lastname': 'Test',
+    'email': 'Test@parking.test',
     'password': 'password123',
-    'access_token': 'dummy-token-emma',
+    'access_token': 'dummy-token-Test',
     'vehicles': [
       {'vehicle_id': 101, 'registration': 'EM21 CAR', 'type': 'CAR'},
       {'vehicle_id': 102, 'registration': 'EV22 EM', 'type': 'EV'},
@@ -19,11 +19,11 @@ const List<Map<String, dynamic>> _dummyUsers = [
   },
   {
     'user_id': 2,
-    'name': 'Liam',
-    'lastname': 'Parker',
-    'email': 'liam@parking.test',
+    'name': 'Test2',
+    'lastname': 'Test2',
+    'email': 'Test2@parking.test',
     'password': 'password123',
-    'access_token': 'dummy-token-liam',
+    'access_token': 'dummy-token-Test2',
     'vehicles': [
       {'vehicle_id': 201, 'registration': 'LM11 VAN', 'type': 'PCV'},
     ],
