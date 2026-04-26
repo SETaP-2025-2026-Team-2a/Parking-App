@@ -9,19 +9,33 @@ def get_user(email):
     try:
         user = auth_getUser(email=email)
         if user and user.get("result") is True:
+            supabase = get_database_connection()
+            vehicle_response = (
+                supabase.table("Vehicle")
+                .select("vehicle_id, registration, type")
+                .eq("user_id", user.get("user_id"))
+                .order("vehicle_id", desc=False)
+                .execute()
+            )
+            vehicles = vehicle_response.data if vehicle_response and vehicle_response.data else []
+
             return {
                 "process": "Get User",
+                "user_id": user.get("user_id"),
                 "name": user.get("first_name") or user.get("name"),
                 "lastname": user.get("last_name") or user.get("lastname"),
                 "email": user.get("email"),
+                "vehicles": vehicles,
                 "result": True,
             }, 200
 
         return {
             "process": "Get User",
+            "user_id": None,
             "name": None,
             "lastname": None,
             "email": email,
+            "vehicles": [],
             "error": "User not found",
             "result": False,
         }, 404
@@ -29,9 +43,11 @@ def get_user(email):
         print(f"Error occurred while fetching user: {e}")
         return {
             "process": "Get User",
+            "user_id": None,
             "name": None,
             "lastname": None,
             "email": email, 
+            "vehicles": [],
             "error": "User not found",
             "result": False
         }, 404
