@@ -87,6 +87,26 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  static const Duration _extensionDuration = Duration(minutes: 30);
+
+  late Duration _remainingDuration;
+  late Duration _totalDuration;
+  Timer? _timer;
+  bool _isPaused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _remainingDuration = const Duration(hours: 1, minutes: 0);
+    _totalDuration = _remainingDuration;
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -94,10 +114,65 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_isPaused || _remainingDuration == Duration.zero) {
+        return;
+      }
+
+      setState(() {
+        final nextDuration = _remainingDuration - const Duration(seconds: 1);
+        if (nextDuration <= Duration.zero) {
+          _remainingDuration = Duration.zero;
+          _isPaused = true;
+          _timer?.cancel();
+        } else {
+          _remainingDuration = nextDuration;
+        }
+      });
+    });
+  }
+
+  void _togglePause() {
+    if (_remainingDuration == Duration.zero) {
+      return;
+    }
+
+    setState(() {
+      _isPaused = !_isPaused;
+    });
+  }
+
+  void _addThirtyMinutes() {
+    setState(() {
+      _remainingDuration += _extensionDuration;
+      _totalDuration += _extensionDuration;
+      if (_remainingDuration > Duration.zero && _timer == null) {
+        _startTimer();
+      }
+    });
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
-      const HomePage(),
+      HomePage(
+        remainingTime: _formatDuration(_remainingDuration),
+        progress: _totalDuration.inSeconds == 0
+            ? 0.0
+            : _remainingDuration.inSeconds / _totalDuration.inSeconds,
+        isPaused: _isPaused,
+        onPauseResume: _togglePause,
+        onAddThirtyMinutes: _addThirtyMinutes,
+      ),
       const search.SearchPage(),
       const HistoryPageWrapper(),
       ProfilePageWrapper(session: widget.session),
@@ -127,23 +202,30 @@ class _MainNavigationState extends State<MainNavigation> {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String remainingTime;
+  final double progress;
+  final bool isPaused;
+  final VoidCallback onPauseResume;
+  final VoidCallback onAddThirtyMinutes;
+
+  const HomePage({
+    super.key,
+    required this.remainingTime,
+    required this.progress,
+    required this.isPaused,
+    required this.onPauseResume,
+    required this.onAddThirtyMinutes,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  static const Duration _extensionDuration = Duration(minutes: 30);
   static const double _nearbyRadiusKm = 5.0;
   final SearchService _searchService = SearchService(
     baseUrl: 'http://localhost:8080',
   );
-
-  late Duration _remainingDuration;
-  late Duration _totalDuration;
-  Timer? _timer;
-  bool _isPaused = false;
   bool _isLoadingNearby = false;
   String? _nearbyError;
   List<CarPark> _nearbyCarParks = [];
@@ -151,16 +233,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _remainingDuration = const Duration(hours: 1, minutes: 0);
-    _totalDuration = _remainingDuration;
-    _startTimer();
     _loadNearbyCarParks();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   Future<void> _loadNearbyCarParks() async {
@@ -223,59 +296,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_isPaused || _remainingDuration == Duration.zero) {
-        return;
-      }
-
-      setState(() {
-        final nextDuration = _remainingDuration - const Duration(seconds: 1);
-        if (nextDuration <= Duration.zero) {
-          _remainingDuration = Duration.zero;
-          _isPaused = true;
-          _timer?.cancel();
-        } else {
-          _remainingDuration = nextDuration;
-        }
-      });
-    });
-  }
-
-  void _togglePause() {
-    if (_remainingDuration == Duration.zero) {
-      return;
-    }
-
-    setState(() {
-      _isPaused = !_isPaused;
-    });
-  }
-
-  void _addThirtyMinutes() {
-    setState(() {
-      _remainingDuration += _extensionDuration;
-      _totalDuration += _extensionDuration;
-      if (_remainingDuration > Duration.zero && _timer == null) {
-        _startTimer();
-      }
-    });
-  }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final progress = _totalDuration.inSeconds == 0
-        ? 0.0
-        : _remainingDuration.inSeconds / _totalDuration.inSeconds;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
@@ -303,11 +325,11 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               flex: 3,
               child: ActiveStayWidget(
-                remainingTime: _formatDuration(_remainingDuration),
-                progress: progress,
-                isPaused: _isPaused,
-                onPauseResume: _togglePause,
-                onAddThirtyMinutes: _addThirtyMinutes,
+                remainingTime: widget.remainingTime,
+                progress: widget.progress,
+                isPaused: widget.isPaused,
+                onPauseResume: widget.onPauseResume,
+                onAddThirtyMinutes: widget.onAddThirtyMinutes,
               ),
             ),
             const SizedBox(height: 16),
