@@ -92,7 +92,7 @@ class _MainNavigationState extends State<MainNavigation> {
   late Duration _remainingDuration;
   late Duration _totalDuration;
   Timer? _timer;
-  bool _isPaused = false;
+  bool _isSessionActive = true;
 
   @override
   void initState() {
@@ -117,7 +117,7 @@ class _MainNavigationState extends State<MainNavigation> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_isPaused || _remainingDuration == Duration.zero) {
+      if (!_isSessionActive || _remainingDuration == Duration.zero) {
         return;
       }
 
@@ -125,7 +125,7 @@ class _MainNavigationState extends State<MainNavigation> {
         final nextDuration = _remainingDuration - const Duration(seconds: 1);
         if (nextDuration <= Duration.zero) {
           _remainingDuration = Duration.zero;
-          _isPaused = true;
+          _isSessionActive = false;
           _timer?.cancel();
         } else {
           _remainingDuration = nextDuration;
@@ -134,13 +134,12 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
-  void _togglePause() {
-    if (_remainingDuration == Duration.zero) {
-      return;
-    }
-
+  void _startNewSession() {
     setState(() {
-      _isPaused = !_isPaused;
+      _isSessionActive = true;
+      _remainingDuration = const Duration(hours: 1, minutes: 0);
+      _totalDuration = _remainingDuration;
+      _startTimer();
     });
   }
 
@@ -151,6 +150,43 @@ class _MainNavigationState extends State<MainNavigation> {
       if (_remainingDuration > Duration.zero && _timer == null) {
         _startTimer();
       }
+    });
+  }
+
+  Future<void> _cancelSession() async {
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Cancel stay?'),
+          content: const Text(
+            'Are you sure you want to cancel this parking session?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Yes, cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldCancel != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _remainingDuration = Duration.zero;
+      _totalDuration = Duration.zero;
+      _isSessionActive = false;
+      _timer?.cancel();
+      _timer = null;
     });
   }
 
@@ -169,9 +205,10 @@ class _MainNavigationState extends State<MainNavigation> {
         progress: _totalDuration.inSeconds == 0
             ? 0.0
             : _remainingDuration.inSeconds / _totalDuration.inSeconds,
-        isPaused: _isPaused,
-        onPauseResume: _togglePause,
+        isSessionActive: _isSessionActive,
+        onCancelSession: _cancelSession,
         onAddThirtyMinutes: _addThirtyMinutes,
+        onStartNewSession: _startNewSession,
       ),
       const search.SearchPage(),
       const HistoryPageWrapper(),
@@ -204,17 +241,19 @@ class _MainNavigationState extends State<MainNavigation> {
 class HomePage extends StatefulWidget {
   final String remainingTime;
   final double progress;
-  final bool isPaused;
-  final VoidCallback onPauseResume;
+  final bool isSessionActive;
+  final VoidCallback onCancelSession;
   final VoidCallback onAddThirtyMinutes;
+  final VoidCallback onStartNewSession;
 
   const HomePage({
     super.key,
     required this.remainingTime,
     required this.progress,
-    required this.isPaused,
-    required this.onPauseResume,
+    required this.isSessionActive,
+    required this.onCancelSession,
     required this.onAddThirtyMinutes,
+    required this.onStartNewSession,
   });
 
   @override
@@ -327,9 +366,10 @@ class _HomePageState extends State<HomePage> {
               child: ActiveStayWidget(
                 remainingTime: widget.remainingTime,
                 progress: widget.progress,
-                isPaused: widget.isPaused,
-                onPauseResume: widget.onPauseResume,
+                isSessionActive: widget.isSessionActive,
+                onCancelSession: widget.onCancelSession,
                 onAddThirtyMinutes: widget.onAddThirtyMinutes,
+                onStartNewSession: widget.onStartNewSession,
               ),
             ),
             const SizedBox(height: 16),
@@ -426,17 +466,19 @@ class CircularActionButton extends StatelessWidget {
 class ActiveStayWidget extends StatelessWidget {
   final String remainingTime;
   final double progress;
-  final bool isPaused;
-  final VoidCallback onPauseResume;
+  final bool isSessionActive;
+  final VoidCallback onCancelSession;
   final VoidCallback onAddThirtyMinutes;
+  final VoidCallback onStartNewSession;
 
   const ActiveStayWidget({
     super.key,
     required this.remainingTime,
     required this.progress,
-    required this.isPaused,
-    required this.onPauseResume,
+    required this.isSessionActive,
+    required this.onCancelSession,
     required this.onAddThirtyMinutes,
+    required this.onStartNewSession,
   });
 
   @override
@@ -449,64 +491,89 @@ class ActiveStayWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE0E0E0)),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            'ACTIVE STAY',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-              color: Color(0xFF008752),
-            ),
-          ),
-          const SizedBox(height: 22),
-          SizedBox(
-            width: 180,
-            height: 180,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 180,
-                  height: 180,
-                  child: CircularProgressIndicator(
-                    value: progress.clamp(0, 1),
-                    color: const Color(0xFF008752),
-                    strokeWidth: 12,
-                    backgroundColor: const Color(0xFFE9F4EE),
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final dialSize = (constraints.maxWidth * 0.58)
+              .clamp(120.0, 180.0)
+              .toDouble();
+
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'ACTIVE STAY',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: Color(0xFF008752),
                 ),
-                Text(
-                  remainingTime,
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: dialSize,
+                height: dialSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: dialSize,
+                      height: dialSize,
+                      child: CircularProgressIndicator(
+                        value: progress.clamp(0, 1),
+                        color: const Color(0xFF008752),
+                        strokeWidth: 12,
+                        backgroundColor: const Color(0xFFE9F4EE),
+                      ),
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        remainingTime,
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onAddThirtyMinutes,
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: const Text('+30 min'),
                   ),
+                  FilledButton.icon(
+                    onPressed: isSessionActive ? onCancelSession : null,
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Cancel'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              if (!isSessionActive) ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: onStartNewSession,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start New Session'),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              FilledButton.icon(
-                onPressed: onPauseResume,
-                icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
-                label: Text(isPaused ? 'Resume' : 'Pause'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: onAddThirtyMinutes,
-                icon: const Icon(Icons.add_circle_outline),
-                label: const Text('+30 min'),
-              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
