@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'pages/login_page.dart';
 import 'pages/profile_page.dart';
@@ -6,6 +7,7 @@ import 'pages/settings_page.dart';
 import 'utils/theme_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'search_page.dart' as search;
 import 'search_data/search.dart';
 import 'user_addition/user_model.dart';
@@ -95,6 +97,7 @@ class _MainNavigationState extends State<MainNavigation> {
   late Duration _totalDuration;
   Timer? _timer;
   ParkingSessionState _sessionState = ParkingSessionState.idle;
+  CarPark? _activeCarPark;
 
   @override
   void initState() {
@@ -146,114 +149,14 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
-  void _beginSession(Duration duration) {
+  void _beginSession(Duration duration, CarPark carPark) {
     setState(() {
       _sessionState = ParkingSessionState.active;
+      _activeCarPark = carPark;
       _remainingDuration = duration;
       _totalDuration = _remainingDuration;
       _startTimer();
     });
-  }
-
-  Future<Duration?> _promptForDuration() async {
-    final durationController = TextEditingController(text: '60');
-    String? errorText;
-
-    final duration = await showDialog<Duration>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            void setPresetMinutes(int minutes) {
-              durationController.text = minutes.toString();
-              setDialogState(() {
-                errorText = null;
-              });
-            }
-
-            return AlertDialog(
-              title: const Text('Start new session'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('How long do you want to park?'),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: durationController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Minutes',
-                      border: const OutlineInputBorder(),
-                      errorText: errorText,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ActionChip(
-                        label: const Text('30 min'),
-                        onPressed: () => setPresetMinutes(30),
-                      ),
-                      ActionChip(
-                        label: const Text('60 min'),
-                        onPressed: () => setPresetMinutes(60),
-                      ),
-                      ActionChip(
-                        label: const Text('90 min'),
-                        onPressed: () => setPresetMinutes(90),
-                      ),
-                      ActionChip(
-                        label: const Text('2 hrs'),
-                        onPressed: () => setPresetMinutes(120),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final minutes = int.tryParse(
-                      durationController.text.trim(),
-                    );
-                    if (minutes == null || minutes <= 0) {
-                      setDialogState(() {
-                        errorText = 'Enter a valid number of minutes';
-                      });
-                      return;
-                    }
-
-                    Navigator.of(dialogContext).pop(Duration(minutes: minutes));
-                  },
-                  child: const Text('Start'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    durationController.dispose();
-    return duration;
-  }
-
-  Future<void> _startNewSession() async {
-    final duration = await _promptForDuration();
-    if (!mounted || duration == null) {
-      return;
-    }
-
-    _timer?.cancel();
-    _timer = null;
-    _beginSession(duration);
   }
 
   void _addThirtyMinutes() {
@@ -323,9 +226,12 @@ class _MainNavigationState extends State<MainNavigation> {
             : _remainingDuration.inSeconds / _totalDuration.inSeconds,
         isSessionActive: _isSessionActive,
         canReviewSession: _canReviewSession,
+        selectedCarPark: _activeCarPark,
         onCancelSession: _cancelSession,
         onAddThirtyMinutes: _addThirtyMinutes,
-        onStartNewSession: _startNewSession,
+        onStartSession: (carPark, duration) async {
+          _beginSession(duration, carPark);
+        },
       ),
       const search.SearchPage(),
       const HistoryPageWrapper(),
@@ -360,9 +266,11 @@ class HomePage extends StatefulWidget {
   final double progress;
   final bool isSessionActive;
   final bool canReviewSession;
+  final CarPark? selectedCarPark;
   final VoidCallback onCancelSession;
   final VoidCallback onAddThirtyMinutes;
-  final VoidCallback onStartNewSession;
+  final Future<void> Function(CarPark carPark, Duration duration)
+  onStartSession;
 
   const HomePage({
     super.key,
@@ -370,9 +278,10 @@ class HomePage extends StatefulWidget {
     required this.progress,
     required this.isSessionActive,
     required this.canReviewSession,
+    required this.selectedCarPark,
     required this.onCancelSession,
     required this.onAddThirtyMinutes,
-    required this.onStartNewSession,
+    required this.onStartSession,
   });
 
   @override
@@ -454,14 +363,201 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<CarPark?> _promptForCarPark() async {
+    if (_nearbyCarParks.isEmpty) {
+      return null;
+    }
+
+    return showModalBottomSheet<CarPark>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Choose a car park',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _nearbyCarParks.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final carPark = _nearbyCarParks[index];
+                      final price =
+                          (carPark.rawData['price'] as num?)?.toDouble() ??
+                          (carPark.rawData['hourly_rate'] as num?)?.toDouble();
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF008752),
+                          child: Text('${index + 1}'),
+                        ),
+                        title: Text(carPark.name),
+                        subtitle: Text(
+                          '${carPark.distance.toStringAsFixed(1)} km away'
+                          '${price != null ? ' • £${price.toStringAsFixed(2)}/hr' : ''}',
+                        ),
+                        onTap: () => Navigator.of(sheetContext).pop(carPark),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Duration?> _promptForDuration(CarPark carPark) async {
+    final durationController = TextEditingController(text: '60');
+    String? errorText;
+    final price =
+        (carPark.rawData['price'] as num?)?.toDouble() ??
+        (carPark.rawData['hourly_rate'] as num?)?.toDouble();
+    final spaces =
+        (carPark.rawData['spaces'] as num?)?.toInt() ??
+        (carPark.rawData['space_count'] as num?)?.toInt();
+
+    final duration = await showDialog<Duration>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            void setPresetMinutes(int minutes) {
+              durationController.text = minutes.toString();
+              setDialogState(() {
+                errorText = null;
+              });
+            }
+
+            return AlertDialog(
+              title: Text(carPark.name),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${carPark.distance.toStringAsFixed(1)} km away'
+                    '${price != null ? ' • £${price.toStringAsFixed(2)}/hr' : ''}'
+                    '${spaces != null ? ' • $spaces spaces' : ''}',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('How long do you want to park?'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: durationController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Minutes',
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ActionChip(
+                        label: const Text('30 min'),
+                        onPressed: () => setPresetMinutes(30),
+                      ),
+                      ActionChip(
+                        label: const Text('60 min'),
+                        onPressed: () => setPresetMinutes(60),
+                      ),
+                      ActionChip(
+                        label: const Text('90 min'),
+                        onPressed: () => setPresetMinutes(90),
+                      ),
+                      ActionChip(
+                        label: const Text('2 hrs'),
+                        onPressed: () => setPresetMinutes(120),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final minutes = int.tryParse(
+                      durationController.text.trim(),
+                    );
+                    if (minutes == null || minutes <= 0) {
+                      setDialogState(() {
+                        errorText = 'Enter a valid number of minutes';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(Duration(minutes: minutes));
+                  },
+                  child: const Text('Start'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    durationController.dispose();
+    return duration;
+  }
+
+  Future<void> _startNewSession() async {
+    final chosenCarPark = await _promptForCarPark();
+    if (!mounted || chosenCarPark == null) {
+      return;
+    }
+
+    final duration = await _promptForDuration(chosenCarPark);
+    if (!mounted || duration == null) {
+      return;
+    }
+
+    await widget.onStartSession(chosenCarPark, duration);
+  }
+
   Future<void> _showReviewSheet() async {
     final commentController = TextEditingController();
     double rating = 5;
     String? commentError;
 
-    final targetName = _nearbyCarParks.isNotEmpty
-        ? _nearbyCarParks.first.name
-        : 'this car park';
+    final targetCarPark =
+        widget.selectedCarPark ??
+        (_nearbyCarParks.isNotEmpty ? _nearbyCarParks.first : null);
+    final targetName = targetCarPark?.name ?? 'this car park';
 
     await showModalBottomSheet<void>(
       context: context,
@@ -549,7 +645,7 @@ class _HomePageState extends State<HomePage> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: () {
+                          onPressed: () async {
                             final comment = commentController.text.trim();
                             if (comment.isEmpty) {
                               setSheetState(() {
@@ -558,14 +654,58 @@ class _HomePageState extends State<HomePage> {
                               return;
                             }
 
-                            Navigator.of(sheetContext).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Thanks for reviewing $targetName',
+                            if (targetCarPark == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Error: No car park selected'),
                                 ),
-                              ),
-                            );
+                              );
+                              Navigator.of(sheetContext).pop();
+                              return;
+                            }
+
+                            try {
+                              final reviewData = {
+                                'title': targetCarPark!.name,
+                                'review': rating.toInt(),
+                                'comment': comment,
+                              };
+
+                              final response = await http.post(
+                                Uri.parse('http://localhost:8080/review'),
+                                headers: {'Content-Type': 'application/json'},
+                                body: jsonEncode(reviewData),
+                              );
+
+                              if (!context.mounted) return;
+
+                              if (response.statusCode == 200 ||
+                                  response.statusCode == 201) {
+                                Navigator.of(sheetContext).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Thanks for reviewing $targetName',
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Failed to submit review: ${response.statusCode}',
+                                    ),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error submitting review: $e'),
+                                ),
+                              );
+                            }
                           },
                           child: const Text('Submit review'),
                         ),
@@ -615,9 +755,14 @@ class _HomePageState extends State<HomePage> {
               canReviewSession: widget.canReviewSession,
               onCancelSession: widget.onCancelSession,
               onAddThirtyMinutes: widget.onAddThirtyMinutes,
-              onStartNewSession: widget.onStartNewSession,
+              onStartNewSession: _startNewSession,
               onReviewCarPark: _showReviewSheet,
             ),
+            const SizedBox(height: 16),
+            if (widget.selectedCarPark != null) ...[
+              SelectedCarParkCard(carPark: widget.selectedCarPark!),
+              const SizedBox(height: 16),
+            ],
             const SizedBox(height: 16),
             const Text(
               'All Car Parks',
@@ -844,6 +989,58 @@ class ActiveStayWidget extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class SelectedCarParkCard extends StatelessWidget {
+  final CarPark carPark;
+
+  const SelectedCarParkCard({super.key, required this.carPark});
+
+  @override
+  Widget build(BuildContext context) {
+    final price =
+        (carPark.rawData['price'] as num?)?.toDouble() ??
+        (carPark.rawData['hourly_rate'] as num?)?.toDouble();
+    final spaces =
+        (carPark.rawData['spaces'] as num?)?.toInt() ??
+        (carPark.rawData['space_count'] as num?)?.toInt();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4FBF7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFBEE4CD)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Selected car park',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF008752),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            carPark.name,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text('${carPark.distance.toStringAsFixed(1)} km away'),
+          const SizedBox(height: 4),
+          Text(price != null ? '£${price.toStringAsFixed(2)}/hr' : 'Price n/a'),
+          if (spaces != null) ...[
+            const SizedBox(height: 4),
+            Text('$spaces spaces available'),
+          ],
+        ],
       ),
     );
   }
