@@ -1,4 +1,5 @@
 from flask_restful import Resource, reqparse
+from flask import request
 from marshmallow import Schema, fields, validate
 
 from modules import get_database_connection, get_database_connection_admin
@@ -19,7 +20,7 @@ class ReviewManager(Resource):
 
         supabase = get_database_connection()
         response = (
-            supabase.table("Reviews")
+            supabase.table("reviews")
             .select("title", "review")
             .eq("carpark_id", args["carpark_id"])
             .execute()
@@ -31,21 +32,25 @@ class ReviewManager(Resource):
             return {"error": "Car park does not exist"}
 
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("title", type=str, required=True)
-        parser.add_argument("review", type=int, required=True)
-        parser.add_argument("comment", type=str, required=True)
-        args = parser.parse_args()
+        data = request.get_json()
+        
+        if not data:
+            return {"error": "No JSON data provided"}, 400
+            
+        title = data.get("title")
+        review = data.get("review")
+        
+        if not title or review is None:
+            return {"error": "Missing required fields: title and review"}, 400
 
         try:
-
             supabase = get_database_connection_admin()
             response = (
-                supabase.table("Reviews")
+                supabase.table("reviews")
                 .insert(
                     {
-                        "title": args["title"],
-                        "review": args["review"],
+                        "title": title,
+                        "review": review,
                     }
                 )
                 .execute()
@@ -53,7 +58,9 @@ class ReviewManager(Resource):
             return {"data": response.data, "message": "Review submitted successfully"}, 201
 
         except Exception as e:
+            print(f"Error submitting review: {e}")
             return {"error": str(e)}, 500
+            
 
     def delete(self):
         parser = reqparse.RequestParser()
@@ -63,7 +70,7 @@ class ReviewManager(Resource):
         try:
 
             supabase = get_database_connection()
-            response = supabase.table("Reviews").delete().eq("review_id", args["review_id"]).execute()
+            response = supabase.table("reviews").delete().eq("review_id", args["review_id"]).execute()
             return {"message": "Review deleted successfully"}, 200
 
         except Exception as e:
