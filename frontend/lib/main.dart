@@ -345,8 +345,7 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -361,16 +360,13 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 24),
-            Expanded(
-              flex: 3,
-              child: ActiveStayWidget(
-                remainingTime: widget.remainingTime,
-                progress: widget.progress,
-                isSessionActive: widget.isSessionActive,
-                onCancelSession: widget.onCancelSession,
-                onAddThirtyMinutes: widget.onAddThirtyMinutes,
-                onStartNewSession: widget.onStartNewSession,
-              ),
+            ActiveStayWidget(
+              remainingTime: widget.remainingTime,
+              progress: widget.progress,
+              isSessionActive: widget.isSessionActive,
+              onCancelSession: widget.onCancelSession,
+              onAddThirtyMinutes: widget.onAddThirtyMinutes,
+              onStartNewSession: widget.onStartNewSession,
             ),
             const SizedBox(height: 16),
             const Text(
@@ -378,57 +374,59 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Expanded(
-              flex: 1,
-              child: Builder(
-                builder: (context) {
-                  if (_isLoadingNearby) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (_nearbyError != null) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_nearbyError!),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: _loadNearbyCarParks,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (_nearbyCarParks.isEmpty) {
-                    return const Center(
-                      child: Text('No nearby car parks found within 5 km'),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: _nearbyCarParks.length,
-                    itemBuilder: (context, index) {
-                      final carPark = _nearbyCarParks[index];
-                      final id = carPark.id == 0 ? index + 1 : carPark.id;
-                      final price =
-                          (carPark.rawData['price'] as num?)?.toDouble() ??
-                          (carPark.rawData['hourly_rate'] as num?)?.toDouble();
-
-                      return PremiumCard(
-                        locationId: 'P$id',
-                        name: carPark.name,
-                        distance: '${carPark.distance.toStringAsFixed(1)} km',
-                        price: price != null
-                            ? '£${price.toStringAsFixed(2)}/hr'
-                            : 'Price n/a',
-                      );
-                    },
+            Builder(
+              builder: (context) {
+                if (_isLoadingNearby) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
                   );
-                },
-              ),
+                }
+
+                if (_nearbyError != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_nearbyError!),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _loadNearbyCarParks,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (_nearbyCarParks.isEmpty) {
+                  return const Center(
+                    child: Text('No nearby car parks found within 5 km'),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: _nearbyCarParks.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final carPark = _nearbyCarParks[index];
+                    final id = carPark.id == 0 ? index + 1 : carPark.id;
+                    final price =
+                        (carPark.rawData['price'] as num?)?.toDouble() ??
+                        (carPark.rawData['hourly_rate'] as num?)?.toDouble();
+
+                    return PremiumCard(
+                      locationId: 'P$id',
+                      name: carPark.name,
+                      distance: '${carPark.distance.toStringAsFixed(1)} km',
+                      price: price != null
+                          ? '£${price.toStringAsFixed(2)}/hr'
+                          : 'Price n/a',
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
