@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'pages/login_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/history_page.dart';
 import 'utils/theme_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -550,7 +551,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _showReviewSheet() async {
-    final commentController = TextEditingController();
     double rating = 5;
     String? commentError;
 
@@ -630,30 +630,10 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: commentController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          labelText: 'Comment',
-                          hintText:
-                              'Tell us what you thought about the car park',
-                          border: const OutlineInputBorder(),
-                          errorText: commentError,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: () async {
-                            final comment = commentController.text.trim();
-                            if (comment.isEmpty) {
-                              setSheetState(() {
-                                commentError = 'Please add a comment';
-                              });
-                              return;
-                            }
-
                             if (targetCarPark == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -666,9 +646,8 @@ class _HomePageState extends State<HomePage> {
 
                             try {
                               final reviewData = {
-                                'title': targetCarPark!.name,
+                                'title': targetCarPark.name,
                                 'review': rating.toInt(),
-                                'comment': comment,
                               };
 
                               final response = await http.post(
@@ -719,8 +698,6 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
-
-    commentController.dispose();
   }
 
   @override
@@ -1096,28 +1073,7 @@ class HistoryPageWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        backgroundColor: Colors.white,
-        elevation: 1,
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 64, color: Color(0xFF008752)),
-            SizedBox(height: 16),
-            Text(
-              'Your Parking History',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('No history yet'),
-          ],
-        ),
-      ),
-    );
+    return const HistoryTabContent();
   }
 }
 

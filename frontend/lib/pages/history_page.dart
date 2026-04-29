@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class Review {
   final String userName;
@@ -22,102 +24,71 @@ class HistoryTabContent extends StatefulWidget {
 }
 
 class _HistoryTabContentState extends State<HistoryTabContent> {
-  final TextEditingController _commentController = TextEditingController();
-  double _userRating = 5;
   late ScrollController _scrollController;
-
-  final List<Review> _pastReviews = [
-    Review(
-      userName: 'Alex Johnson',
-      rating: 5,
-      comment:
-          'Great location! Easy to find and very secure. Highly recommended.',
-      date: DateTime(2025, 12, 20),
-    ),
-    Review(
-      userName: 'Sarah Williams',
-      rating: 4,
-      comment: 'Good spot. A bit tight but affordable. Would park here again.',
-      date: DateTime(2025, 12, 15),
-    ),
-    Review(
-      userName: 'Mike Chen',
-      rating: 5,
-      comment: 'Excellent! Clean, well-lit, and has good security cameras.',
-      date: DateTime(2025, 12, 10),
-    ),
-    Review(
-      userName: 'Emma Green',
-      rating: 3,
-      comment: 'Average parking spot. Gets busy during peak hours.',
-      date: DateTime(2025, 12, 5),
-    ),
-  ];
+  List<Review> _pastReviews = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:8080/search-all'),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        final reviewsData = jsonData['data'] as List;
+
+        setState(() {
+          _pastReviews = reviewsData
+              .where((item) => item['review'] != null && item['title'] != null)
+              .map((item) {
+                return Review(
+                  userName: item['title'] ?? 'Unknown',
+                  rating: (item['review'] ?? 0).toDouble(),
+                  comment: item['title'] ?? '',
+                  date: DateTime.now(),
+                );
+              })
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load reviews';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    _commentController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _submitReview() {
-    if (_commentController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a comment')));
-      return;
-    }
-
-    setState(() {
-      _pastReviews.insert(
-        0,
-        Review(
-          userName: 'You',
-          rating: _userRating,
-          comment: _commentController.text,
-          date: DateTime.now(),
-        ),
-      );
-      _commentController.clear();
-      _userRating = 5;
-    });
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Review submitted!')));
-
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  Widget _buildStars(double rating, {bool interactive = false}) {
+  Widget _buildStars(double rating) {
     return Row(
       children: List.generate(5, (index) {
         final filled = index < rating;
-        return interactive
-            ? GestureDetector(
-              onTap: () => setState(() => _userRating = index + 1.0),
-              child: Icon(
-                Icons.star,
-                color: filled ? Colors.amber : Colors.grey.shade300,
-                size: 28,
-              ),
-            )
-            : Icon(
-              Icons.star,
-              color: filled ? Colors.amber : Colors.grey.shade300,
-              size: 18,
-            );
+        return Icon(
+          Icons.star,
+          color: filled ? Colors.amber : Colors.grey.shade300,
+          size: 18,
+        );
       }),
     );
   }
@@ -126,135 +97,113 @@ class _HistoryTabContentState extends State<HistoryTabContent> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Parking Reviews'), centerTitle: true),
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          children: [
-            // Leave a Review Section
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Share Your Experience',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Error: $_error'),
                   const SizedBox(height: 16),
-                  Text(
-                    'Rate: ${_userRating.toStringAsFixed(0)} / 5',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildStars(_userRating, interactive: true),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Share your feedback...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _submitReview,
-                      child: const Text('Submit'),
-                    ),
+                  ElevatedButton(
+                    onPressed: _loadReviews,
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
-            ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'User Reviews',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            )
+          : _pastReviews.isEmpty
+          ? const Center(child: Text('No reviews yet'))
+          : SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'All Reviews',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
-                ),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _pastReviews.length,
+                    itemBuilder: (context, index) {
+                      final review = _pastReviews[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.2),
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      review.userName,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    Text(
+                                      _formatDate(review.date),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.outline,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                _buildStars(review.rating),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              review.comment,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _pastReviews.length,
-              itemBuilder: (context, index) {
-                final review = _pastReviews[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    border: Border.all(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withOpacity(0.2),
-                      width: 1,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                review.userName,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                _formatDate(review.date),
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.outline,
-                                ),
-                              ),
-                            ],
-                          ),
-                          _buildStars(review.rating),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        review.comment,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
     );
   }
 
