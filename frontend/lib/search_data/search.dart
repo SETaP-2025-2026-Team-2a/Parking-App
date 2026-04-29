@@ -105,9 +105,7 @@ class SearchService {
   }
 
   Future<List<CarPark>> _performSearch(SearchParams params) async {
-    final uri = Uri.parse(
-      '$baseUrl/search',
-    ).replace(queryParameters: params.toQueryParams());
+    final uri = Uri.parse('$baseUrl/search-all');
 
     final response = await http
         .get(uri)

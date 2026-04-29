@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:parkingapp/pages/signup_page.dart';
-import 'package:parkingapp/user_addition/dummy_auth.dart';
+import 'package:parkingapp/user_addition/user_add.dart';
 import 'package:parkingapp/user_addition/user_model.dart';
 
 //overall box
@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final session = await loginDummyUser(email: email, password: password);
+      final session = await loginUser(email: email, password: password);
       if (!mounted) {
         return;
       }

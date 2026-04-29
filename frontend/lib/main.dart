@@ -14,6 +14,8 @@ void main() {
   runApp(MyApp(themeManager: ThemeManager()));
 }
 
+enum ParkingSessionState { idle, active, ended }
+
 class MyApp extends StatefulWidget {
   final ThemeManager themeManager;
 
@@ -92,14 +94,13 @@ class _MainNavigationState extends State<MainNavigation> {
   late Duration _remainingDuration;
   late Duration _totalDuration;
   Timer? _timer;
-  bool _isSessionActive = true;
+  ParkingSessionState _sessionState = ParkingSessionState.idle;
 
   @override
   void initState() {
     super.initState();
-    _remainingDuration = const Duration(hours: 1, minutes: 0);
-    _totalDuration = _remainingDuration;
-    _startTimer();
+    _remainingDuration = Duration.zero;
+    _totalDuration = Duration.zero;
   }
 
   @override
@@ -114,10 +115,20 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  bool get _isSessionActive => _sessionState == ParkingSessionState.active;
+
+  bool get _canReviewSession => _sessionState == ParkingSessionState.ended;
+
   void _startTimer() {
     _timer?.cancel();
+    if (_remainingDuration <= Duration.zero) {
+      return;
+    }
+
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!_isSessionActive || _remainingDuration == Duration.zero) {
+      if (_sessionState != ParkingSessionState.active ||
+          _remainingDuration == Duration.zero) {
+        _timer?.cancel();
         return;
       }
 
@@ -125,8 +136,9 @@ class _MainNavigationState extends State<MainNavigation> {
         final nextDuration = _remainingDuration - const Duration(seconds: 1);
         if (nextDuration <= Duration.zero) {
           _remainingDuration = Duration.zero;
-          _isSessionActive = false;
+          _sessionState = ParkingSessionState.ended;
           _timer?.cancel();
+          _timer = null;
         } else {
           _remainingDuration = nextDuration;
         }
@@ -134,16 +146,121 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
-  void _startNewSession() {
+  void _beginSession(Duration duration) {
     setState(() {
-      _isSessionActive = true;
-      _remainingDuration = const Duration(hours: 1, minutes: 0);
+      _sessionState = ParkingSessionState.active;
+      _remainingDuration = duration;
       _totalDuration = _remainingDuration;
       _startTimer();
     });
   }
 
+  Future<Duration?> _promptForDuration() async {
+    final durationController = TextEditingController(text: '60');
+    String? errorText;
+
+    final duration = await showDialog<Duration>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            void setPresetMinutes(int minutes) {
+              durationController.text = minutes.toString();
+              setDialogState(() {
+                errorText = null;
+              });
+            }
+
+            return AlertDialog(
+              title: const Text('Start new session'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('How long do you want to park?'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: durationController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Minutes',
+                      border: const OutlineInputBorder(),
+                      errorText: errorText,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ActionChip(
+                        label: const Text('30 min'),
+                        onPressed: () => setPresetMinutes(30),
+                      ),
+                      ActionChip(
+                        label: const Text('60 min'),
+                        onPressed: () => setPresetMinutes(60),
+                      ),
+                      ActionChip(
+                        label: const Text('90 min'),
+                        onPressed: () => setPresetMinutes(90),
+                      ),
+                      ActionChip(
+                        label: const Text('2 hrs'),
+                        onPressed: () => setPresetMinutes(120),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final minutes = int.tryParse(
+                      durationController.text.trim(),
+                    );
+                    if (minutes == null || minutes <= 0) {
+                      setDialogState(() {
+                        errorText = 'Enter a valid number of minutes';
+                      });
+                      return;
+                    }
+
+                    Navigator.of(dialogContext).pop(Duration(minutes: minutes));
+                  },
+                  child: const Text('Start'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    durationController.dispose();
+    return duration;
+  }
+
+  Future<void> _startNewSession() async {
+    final duration = await _promptForDuration();
+    if (!mounted || duration == null) {
+      return;
+    }
+
+    _timer?.cancel();
+    _timer = null;
+    _beginSession(duration);
+  }
+
   void _addThirtyMinutes() {
+    if (!_isSessionActive) {
+      return;
+    }
+
     setState(() {
       _remainingDuration += _extensionDuration;
       _totalDuration += _extensionDuration;
@@ -183,8 +300,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
     setState(() {
       _remainingDuration = Duration.zero;
-      _totalDuration = Duration.zero;
-      _isSessionActive = false;
+      _sessionState = ParkingSessionState.ended;
       _timer?.cancel();
       _timer = null;
     });
@@ -206,6 +322,7 @@ class _MainNavigationState extends State<MainNavigation> {
             ? 0.0
             : _remainingDuration.inSeconds / _totalDuration.inSeconds,
         isSessionActive: _isSessionActive,
+        canReviewSession: _canReviewSession,
         onCancelSession: _cancelSession,
         onAddThirtyMinutes: _addThirtyMinutes,
         onStartNewSession: _startNewSession,
@@ -242,6 +359,7 @@ class HomePage extends StatefulWidget {
   final String remainingTime;
   final double progress;
   final bool isSessionActive;
+  final bool canReviewSession;
   final VoidCallback onCancelSession;
   final VoidCallback onAddThirtyMinutes;
   final VoidCallback onStartNewSession;
@@ -251,6 +369,7 @@ class HomePage extends StatefulWidget {
     required this.remainingTime,
     required this.progress,
     required this.isSessionActive,
+    required this.canReviewSession,
     required this.onCancelSession,
     required this.onAddThirtyMinutes,
     required this.onStartNewSession,
@@ -261,7 +380,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const double _nearbyRadiusKm = 5.0;
+  static const double _allCarParksRadiusKm = 20000.0;
   final SearchService _searchService = SearchService(
     baseUrl: 'http://localhost:8080',
   );
@@ -307,7 +426,7 @@ class _HomePageState extends State<HomePage> {
         query: '',
         longitude: position.longitude,
         latitude: position.latitude,
-        radiusKm: _nearbyRadiusKm,
+        radiusKm: _allCarParksRadiusKm,
       );
 
       results.sort((a, b) => a.distance.compareTo(b.distance));
@@ -333,6 +452,135 @@ class _HomePageState extends State<HomePage> {
         });
       }
     }
+  }
+
+  Future<void> _showReviewSheet() async {
+    final commentController = TextEditingController();
+    double rating = 5;
+    String? commentError;
+
+    final targetName = _nearbyCarParks.isNotEmpty
+        ? _nearbyCarParks.first.name
+        : 'this car park';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Widget buildStar(int index) {
+              final filled = index < rating;
+              return IconButton(
+                onPressed: () {
+                  setSheetState(() {
+                    rating = index + 1;
+                  });
+                },
+                icon: Icon(
+                  Icons.star,
+                  size: 34,
+                  color: filled ? Colors.amber : Colors.grey.shade300,
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 16,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Review $targetName',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Choose a star rating and leave a comment.'),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, buildStar),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          '${rating.toStringAsFixed(0)} / 5',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: commentController,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          labelText: 'Comment',
+                          hintText:
+                              'Tell us what you thought about the car park',
+                          border: const OutlineInputBorder(),
+                          errorText: commentError,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () {
+                            final comment = commentController.text.trim();
+                            if (comment.isEmpty) {
+                              setSheetState(() {
+                                commentError = 'Please add a comment';
+                              });
+                              return;
+                            }
+
+                            Navigator.of(sheetContext).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Thanks for reviewing $targetName',
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text('Submit review'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    commentController.dispose();
   }
 
   @override
@@ -364,13 +612,15 @@ class _HomePageState extends State<HomePage> {
               remainingTime: widget.remainingTime,
               progress: widget.progress,
               isSessionActive: widget.isSessionActive,
+              canReviewSession: widget.canReviewSession,
               onCancelSession: widget.onCancelSession,
               onAddThirtyMinutes: widget.onAddThirtyMinutes,
               onStartNewSession: widget.onStartNewSession,
+              onReviewCarPark: _showReviewSheet,
             ),
             const SizedBox(height: 16),
             const Text(
-              'Nearby Car Parks',
+              'All Car Parks',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -400,9 +650,7 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 if (_nearbyCarParks.isEmpty) {
-                  return const Center(
-                    child: Text('No nearby car parks found within 5 km'),
-                  );
+                  return const Center(child: Text('No car parks found'));
                 }
 
                 return ListView.builder(
@@ -465,18 +713,22 @@ class ActiveStayWidget extends StatelessWidget {
   final String remainingTime;
   final double progress;
   final bool isSessionActive;
+  final bool canReviewSession;
   final VoidCallback onCancelSession;
   final VoidCallback onAddThirtyMinutes;
   final VoidCallback onStartNewSession;
+  final VoidCallback onReviewCarPark;
 
   const ActiveStayWidget({
     super.key,
     required this.remainingTime,
     required this.progress,
     required this.isSessionActive,
+    required this.canReviewSession,
     required this.onCancelSession,
     required this.onAddThirtyMinutes,
     required this.onStartNewSession,
+    required this.onReviewCarPark,
   });
 
   @override
@@ -494,14 +746,19 @@ class ActiveStayWidget extends StatelessWidget {
           final dialSize = (constraints.maxWidth * 0.58)
               .clamp(120.0, 180.0)
               .toDouble();
+          final title = isSessionActive
+              ? 'ACTIVE STAY'
+              : canReviewSession
+              ? 'SESSION ENDED'
+              : 'NO ACTIVE SESSION';
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'ACTIVE STAY',
-                style: TextStyle(
+              Text(
+                title,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -528,11 +785,12 @@ class ActiveStayWidget extends StatelessWidget {
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        remainingTime,
-                        style: const TextStyle(
+                        isSessionActive ? remainingTime : '00:00:00',
+                        style: TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.6,
+                          color: isSessionActive ? null : Colors.grey.shade600,
                         ),
                       ),
                     ),
@@ -540,33 +798,47 @@ class ActiveStayWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: onAddThirtyMinutes,
-                    icon: const Icon(Icons.add_circle_outline),
-                    label: const Text('+30 min'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: isSessionActive ? onCancelSession : null,
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Cancel'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
+              if (isSessionActive) ...[
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onAddThirtyMinutes,
+                      icon: const Icon(Icons.add_circle_outline),
+                      label: const Text('+30 min'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: onCancelSession,
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                if (canReviewSession) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onReviewCarPark,
+                      icon: const Icon(Icons.rate_review_outlined),
+                      label: const Text('Review car park'),
                     ),
                   ),
+                  const SizedBox(height: 12),
                 ],
-              ),
-              if (!isSessionActive) ...[
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: onStartNewSession,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text('Start New Session'),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onStartNewSession,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Start New Session'),
+                  ),
                 ),
               ],
             ],
