@@ -1,7 +1,7 @@
 import math
 
 from flask_restful import Resource, reqparse
-from modules import get_database_connection
+from modules import get_database_connection_admin
 from car_park_manager import CarParkSchema
 
 def to_float(value):
@@ -45,6 +45,16 @@ def extract_distance(car_park, origin_lon, origin_lat):
 def within_range(value, minimum, maximum):
         return value is not None and minimum <= value <= maximum
 
+class SearchManagerAll(Resource):
+    def get(self):
+        supabase = get_database_connection_admin()
+        response = supabase.table("carpark").select("*").execute()
+
+        if getattr(response, "error", None):
+            return {"error": "Failed to fetch car parks"}, 500
+
+        return CarParkSchema(many=True).dump(response.data or []), 200
+
 class SearchManager(Resource):
 
 
@@ -72,7 +82,7 @@ class SearchManager(Resource):
         max_distance = args["maxDistance"]
         user_longitude = args["longitude"]
 
-        supabase = get_database_connection()
+        supabase = get_database_connection_admin()
         response = supabase.table("carpark").select("*").execute()
 
         if getattr(response, "error", None):

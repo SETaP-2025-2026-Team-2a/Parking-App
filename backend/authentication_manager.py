@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from modules import get_database_connection, get_database_connection_admin
 
 
 load_dotenv()  # Load environment variables from .env file
@@ -30,21 +31,12 @@ def create_session_token(user):
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-def get_database_connection():
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-    return supabase
 
 def getUser(email=None):
     try:
-        supabase = get_database_connection()
-        response = supabase.table("User").select("*").eq("email", email).execute()
-        if response.error:
-            print(f"Error fetching user from database: {response.error.message}")
-            return {
-                "email": email,
-                "result": False,
-                "error": "An error occurred while fetching the user"
-            }
+        normalized_email = email.strip().lower() if email else email
+        supabase = get_database_connection_admin()
+        response = supabase.table("User").select("*").ilike("email", normalized_email).execute()
         if response.data:
             user = response.data[0]
             return {
@@ -58,13 +50,13 @@ def getUser(email=None):
                 "result": True
             }
         return {
-                "email": email,
+                "email": normalized_email,
                 "result": False
             }
     except Exception as e:
         print(f"Error occurred while fetching user: {e}")
         return {
-            "email": email,
+            "email": email.strip().lower() if email else email,
             "result": False,
             "error": "An error occurred while fetching the user"
         }
@@ -100,7 +92,8 @@ def validateUser(email, password):
 
 def createUserAccount(name, lastname, email, password):
     try:
-        existing_user = getUser(email=email)
+        normalized_email = email.strip().lower()
+        existing_user = getUser(email=normalized_email)
         if existing_user and existing_user.get("result") is True:
             return {
                 "process": "Sign Up",
@@ -109,21 +102,22 @@ def createUserAccount(name, lastname, email, password):
             }, 409
 
         password_hash = generate_password_hash(password)
-        supabase = get_database_connection()
+        supabase = get_database_connection_admin()
         response = (
             supabase.table("User")
             .insert(
                 {
                     "first_name": name,
                     "last_name": lastname,
-                    "email": email,
+                    "email": normalized_email,
                     "password_hash": password_hash,
+                    "payment_token": "",
                 }
             )
             .execute()
         )
 
-        if getattr(response, "error", None):
+        if not response.data:
             return {
                 "process": "Sign Up",
                 "result": False,
@@ -140,7 +134,7 @@ def createUserAccount(name, lastname, email, password):
             "last_name": lastname,
             "name": name,
             "lastname": lastname,
-            "email": email,
+            "email": normalized_email,
         }, 201
     except Exception as e:
         print(f"Error occurred during sign up: {e}")
@@ -153,7 +147,8 @@ def createUserAccount(name, lastname, email, password):
 
 def deleteUser(email, password):
     try:
-        user = getUser(email=email)
+        normalized_email = email.strip().lower()
+        user = getUser(email=normalized_email)
         if not user or user.get("result") is False:
             return {"process": "Delete User", "error": "Invalid credentials"}, 401
         if not check_password_hash(user["password_hash"], password):
@@ -161,10 +156,9 @@ def deleteUser(email, password):
 
         print(f"Deleting user: {user['name']}")
 
-        supabase = get_database_connection()
-        response = supabase.table("User").delete().eq("email", email).execute()
-        if response.error:
-            print(f"Error deleting user from database: {response.error.message}")
+        supabase = get_database_connection_admin()
+        response = supabase.table("User").delete().ilike("email", normalized_email).execute()
+        if response.data is None:
             return {"process": "Delete User", "error": "An error occurred while deleting the user"}, 500
 
         return {

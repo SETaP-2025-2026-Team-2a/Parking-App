@@ -22,13 +22,9 @@ class CarPark(Resource):
             return {
                 "data": CarParkSchema().dump(car_park_data)
             }, 200
-        else:
-            return {
-                "data": [{"name": "No car parks found"}]
-            }, 200
         return {
-            "error": "Car park not found"
-        }, 404
+            "data": [{"name": "No car parks found"}]
+        }, 200
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -44,7 +40,7 @@ class CarPark(Resource):
             "location": args["location"]
         }).execute()
 
-        if response.error:
+        if not response.data:
             return {
                 "error": "Failed to create car park"
             }, 500

@@ -22,10 +22,10 @@ def default_car_parks():
         "name": car_park["name"],
         "location": location_geom,
         "is_restricted": False,
-        "space_type" : ["Car", "Motorcycle", "Disabled"],
+        "space_type" : "CAR",
         }).execute()
 
-        if response.error:
+        if not response.data:
             return {
                 "error": "Failed to create car park"
             }, 500
@@ -53,7 +53,7 @@ def default_user():
             "last_name": "User"
         }).execute()
 
-        if response.error:
+        if not response.data:
             return {
                 "error": "Failed to create default user"
             }, 500
