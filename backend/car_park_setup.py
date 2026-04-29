@@ -20,7 +20,9 @@ def default_car_parks():
         
         response = supabase.table("carpark").insert({
         "name": car_park["name"],
-        "location": location_geom
+        "location": location_geom,
+        "is_restricted": False,
+        "space_type" : ["Car", "Motorcycle", "Disabled"],
         }).execute()
 
         if response.error:
@@ -33,7 +35,7 @@ def default_car_parks():
         }, 201
 
 carparks = [
-    {"name": "gunwharf quays", "spaces": 500, "location": "40.785091,-73.968285"},
+    {"name": "gunwharf quays", "spaces": 500, "location": "-1.1062,50.7954621"},
     {"name": "Portaland car park", "spaces": 50, "location": "40.712776,-74.005974"},
     {"name": "multi-storey", "spaces": 200, "location": "40.641311,-73.778139"},
 ]
