@@ -9,7 +9,10 @@ Parking-App/
 ├── frontend/          # Flutter mobile application
 │   ├── lib/
 │   │   ├── main.dart           # Main app entry point
-│   │   └── data/               # Data layer (BLoC, API, models)
+│   │   ├── data/               # Data layer (BLoC, API, models)
+|   |   ├── pages/              # App views
+|   |   └── widgets/            # Widgets used in multiple places within the app.
+|   | 
 │   ├── android/                # Android platform files
 │   ├── ios/                    # iOS platform files
 │   ├── web/                    # Web platform files
@@ -27,9 +30,9 @@ Parking-App/
   - Parking location name
   - Number of available spaces
   - Distance from current location
-- **Search Tab**: Search functionality (coming soon)
-- **Profile Tab**: User profile management (coming soon)
-- **Settings Tab**: App settings (coming soon)
+- **Search Tab**: Search functionality
+- **Profile Tab**: User profile management
+- **Settings Tab**: App settings
 
 ## Technologies Used
 
@@ -47,55 +50,11 @@ Parking-App/
 
 ## Getting Started
 
-Documentation for the project is available [here](https://setap-team-2a-2026.readthedocs.io/en/latest/).
-
-### Prerequisites
-- Flutter SDK (^3.9.2)
-- Python 3.x
-- pip (Python package manager)
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the Flask server:
-   ```bash
-   python app.py
-   ```
-
-   The server will start at `http://127.0.0.1:8080/`
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install Flutter dependencies:
-   ```bash
-   flutter pub get
-   ```
-
-3. Run the Flutter app:
-   ```bash
-   flutter run
-   ```
-
-   Select your target device (Android emulator, iOS simulator, or web browser)
+Information for getting started with the app, as well as development and testing instructions, can be found in the documentation [here](https://setap-team-2a-2026.readthedocs.io/en/latest/).
 
 ## API Endpoints
 
-### GET `/`
-Returns a list of available parking locations.
+A full list of API endpoints, their parameters, methods, and return values, can be found in the [documentation](https://setap-team-2a-2026.readthedocs.io/en/latest/api.html).
 
 ## Architecture
 
@@ -133,7 +92,7 @@ flutter build web
 
 ## Contributing
 
-This is a university project for Level 5 Software Engineering.
+This is a university project for the Level 5 module Software Engineering Theory and Practice.
 
 ## License
 
