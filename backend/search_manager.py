@@ -17,7 +17,7 @@ def extract_distance(car_park, origin_lon, origin_lat):
             return direct_distance
 
         location = car_park.get("location", {})
-        # need to split coordinates from GeoJSON format (longitude, latitude)
+        # need to split coordinates from saved state in database
         coordinates = location.get("coordinates", [])
         if len(coordinates) != 2:
             return None
@@ -68,12 +68,14 @@ class SearchManager(Resource):
         parser.add_argument("lattitude", type=float, required=False, location="args")
         args = parser.parse_args()
 
+        # validation checks wether the user has a lang and long input
         user_latitude = args.get("latitude")
         if user_latitude is None:
             user_latitude = args.get("lattitude")
         if user_latitude is None:
             return {"error": "Either latitude or lattitude is required"}, 400
 
+        # validation check of distances
         if args["minDistance"] > args["maxDistance"]:
             return {"error": "minDistance cannot be greater than maxDistance"}, 400
 
@@ -88,6 +90,7 @@ class SearchManager(Resource):
         if getattr(response, "error", None):
             return {"error": "Failed to fetch car parks"}, 500
 
+        # all car parks filtered into specified parameters (is quite slow so needs to be adjusted)
         filtered_results = []
         for car_park in response.data or []:
             name = (car_park.get("name") or "").strip()
@@ -100,6 +103,7 @@ class SearchManager(Resource):
                 origin_lat=user_latitude,
             )
 
+            # checks range based on parameters if not true skip
             if not within_range(distance, min_distance, max_distance):
                 continue
 

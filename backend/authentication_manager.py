@@ -7,7 +7,7 @@ from supabase import create_client, Client
 from modules import get_database_connection, get_database_connection_admin
 
 
-load_dotenv()  # Load environment variables from .env file
+load_dotenv()  # Load environment variables from .env file to protect keys
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")   
@@ -45,10 +45,12 @@ def getUser(email=None):
 
 def validateUser(email, password):
     try:
+        # Use get user to gather wether the user exists
         user = getUser(email=email)
         if not user or user.get("result") is False:
             return {"process": "Sign In", "error": "Invalid credentials"}, 401
 
+        #passwords are checked wether they match and if they dont they send an error back
         if not check_password_hash(user["password_hash"], password):
             return {"process": "Sign In", "result": False, "error": "Invalid credentials"}, 401
 
@@ -70,6 +72,7 @@ def validateUser(email, password):
 
 def createUserAccount(name, lastname, email, password):
     try:
+        # email is normalized to make sure no duplicate emails are used and a consiatnt format
         normalized_email = email.strip().lower()
         existing_user = getUser(email=normalized_email)
         if existing_user and existing_user.get("result") is True:
@@ -79,6 +82,7 @@ def createUserAccount(name, lastname, email, password):
                 "error": "Email already exists",
             }, 409
 
+        #password gets hashed to protect user data
         password_hash = generate_password_hash(password)
         supabase = get_database_connection_admin()
         response = (
@@ -115,7 +119,7 @@ def createUserAccount(name, lastname, email, password):
             "email": normalized_email,
         }, 201
     except Exception as e:
-        print(f"Error occurred during sign up: {e}")
+        #print(f"Error occurred during sign up: {e}")
         return {
             "process": "Sign Up",
             "result": False,
@@ -132,8 +136,9 @@ def deleteUser(email, password):
         if not check_password_hash(user["password_hash"], password):
             return {"process": "Delete User", "result": False, "error": "Invalid credentials"}, 401
 
-        print(f"Deleting user: {user['name']}")
+        #print(f"Deleting user: {user['name']}")
 
+        # admin connection used as needs permissions to delte user that normal database connection doesnt allow
         supabase = get_database_connection_admin()
         response = supabase.table("User").delete().ilike("email", normalized_email).execute()
         if response.data is None:

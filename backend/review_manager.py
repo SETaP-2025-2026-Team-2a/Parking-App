@@ -20,6 +20,7 @@ class ReviewManager(Resource):
         supabase = get_database_connection_admin()
 
         try:
+            # grabs all reviews with an order of review id in DESC order
             response = (
                 supabase.table("reviews")
                 .select("review_id, title, review, comment")

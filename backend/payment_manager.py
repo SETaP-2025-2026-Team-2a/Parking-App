@@ -33,10 +33,7 @@ class Payment(Resource):
                 "details": "Authentication failed for the user"
             }, 401
 
-        # Validate payment details in a real application this would involve more complex logic and integration with a payment gateway
-        # Here it would be integrated with a payment gateway like Stripe or PayPal
-        # But as this isn't a real implementation, setting it up with a gatway is not a viable option
-        # we will assume the payment is always successful after simple validation checks
+        # TODO: integrate payment gateway and process payment using args["amount"] and args["payment_method"]
 
         amount = args["amount"]
         payment_method = args["payment_method"]

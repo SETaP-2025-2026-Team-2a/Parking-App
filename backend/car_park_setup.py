@@ -2,6 +2,8 @@ from modules import get_database_connection_admin
 from car_park_manager import CarParkSchema
 from werkzeug.security import generate_password_hash
 
+
+# default car parks used to make sure database is populated with car aprks from the start
 def default_car_parks():
     supabase = get_database_connection_admin()
     for car_park in carparks:
@@ -11,7 +13,7 @@ def default_car_parks():
         if existing.data:
             continue
         
-        # Convert coordinates to GeoJSON format (longitude, latitude)
+        # longitude and latitude are grabbed from string and converted into to GeoJson to allow input into database
         lat, lon = map(float, car_park["location"].split(","))
         location_geom = {
             "type": "Point",
@@ -43,6 +45,7 @@ carparks = [
     {"name": "multi-storey", "spaces": 200, "location": "50.789373484485104, -1.0746539455489148"},
 ]
 
+# default users are used for demo purposes so a test user can still use the software
 def default_user():
     supabase = get_database_connection_admin()
     existing = supabase.table("User").select("*").eq("email", "admin@example.com").execute()

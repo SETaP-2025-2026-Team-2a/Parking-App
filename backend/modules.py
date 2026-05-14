@@ -8,11 +8,14 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
+# both of these are used across the project so they were consolodated into this file to stop repition of code
 def get_database_connection():
+    # this connection uses anon key (doesnt bypass RLS)
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     return supabase
 
+
 def get_database_connection_admin():
-    """Get admin connection using service role key (bypasses RLS)"""
+    # this connection uses service role key (bypasses RLS)
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     return supabase
