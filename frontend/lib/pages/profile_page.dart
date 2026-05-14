@@ -24,6 +24,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
   bool _isUpdating = false;
   late SharedPreferences _prefs;
 
+  // Save the current vehicle list locally so it survives app restarts.
   Future<void> _saveVehicles() async {
     final vehiclesJson = _vehicles
         .map(
@@ -33,6 +34,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
     await _prefs.setStringList('vehicles', vehiclesJson);
   }
 
+  // Restore any vehicles that were saved in SharedPreferences earlier.
   Future<void> _loadVehiclesFromStorage() async {
     final vehiclesJson = _prefs.getStringList('vehicles') ?? [];
     final vehicles = vehiclesJson.map((v) {
@@ -104,6 +106,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
     return (firstName: parts.first, lastName: parts.sublist(1).join(' '));
   }
 
+  // Send the edited profile back to the backend using the original email as a lookup key.
   Future<void> _handleUpdateProfile() async {
     final splitName = _splitName(_userName);
 
@@ -158,6 +161,7 @@ class _ProfileTabContentState extends State<ProfileTabContent> {
     }
   }
 
+  // Fetch the latest profile data from the backend and map it into the UI state.
   Future<void> _loadDummyProfile() async {
     try {
       final profile = await getUserProfile(email: widget.session.email);

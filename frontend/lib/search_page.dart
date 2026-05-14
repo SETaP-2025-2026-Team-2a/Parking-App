@@ -89,6 +89,7 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  // Read the device location, then center the map and enable follow mode when possible.
   Future<void> _setUserLocation() async {
     setState(() {
       _isLocating = true;
@@ -155,6 +156,7 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  // Watch position updates so the map and voice guidance stay in sync with movement.
   void _startPositionTracking() {
     _positionSubscription?.cancel();
     _positionSubscription =
@@ -176,6 +178,7 @@ class _SearchPageState extends State<SearchPage> {
           if (_followUser) {
             _mapController.move(current, 16);
           }
+          // Speak turn-by-turn instructions only when the user gets close enough to the next step.
 
           _checkNavigationVoice(current);
         });

@@ -104,6 +104,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   bool get _canReviewSession => _sessionState == ParkingSessionState.ended;
 
+  // Run the active parking-session countdown and end the session when time runs out.
   void _startTimer() {
     _timer?.cancel();
     if (_remainingDuration <= Duration.zero) {
@@ -205,6 +206,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep each tab alive so navigation state and timers are preserved when switching screens.
     final pages = [
       HomePage(
         session: widget.session,

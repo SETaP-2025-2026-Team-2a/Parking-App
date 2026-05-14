@@ -16,6 +16,7 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isSubmitting = false;
 
+  // Dispose controllers so the form does not leak memory when the page closes.
   @override
   void dispose() {
     _nameController.dispose();
@@ -25,6 +26,7 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
+  // Validate the required fields, then create the new account through the backend helper.
   Future<void> _handleSignup() async {
     final name = _nameController.text.trim();
     final lastname = _lastNameController.text.trim();
@@ -80,6 +82,7 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    // A simple centered signup card keeps the form focused and easy to scan.
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
