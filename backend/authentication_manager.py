@@ -2,7 +2,6 @@ from flask_restful import Resource, reqparse
 from werkzeug.security import check_password_hash, generate_password_hash
 import os
 from datetime import datetime, timedelta, timezone
-import jwt
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from modules import get_database_connection, get_database_connection_admin
@@ -10,26 +9,8 @@ from modules import get_database_connection, get_database_connection_admin
 
 load_dotenv()  # Load environment variables from .env file
 
-JWT_SECRET = os.getenv("JWT_SECRET")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
-JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "60"))  # Default to 60 minutes if not set
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")   
-
-
-def create_session_token(user):
-    now = datetime.now(timezone.utc)
-    first_name = user.get("first_name") or user.get("name")
-    last_name = user.get("last_name") or user.get("lastname")
-    payload = {
-        "sub": f"{user['email']}",
-        "name": first_name,
-        "lastname": last_name,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=JWT_EXPIRES_MINUTES)).timestamp()),
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def getUser(email=None):
@@ -71,7 +52,6 @@ def validateUser(email, password):
         if not check_password_hash(user["password_hash"], password):
             return {"process": "Sign In", "result": False, "error": "Invalid credentials"}, 401
 
-        token = create_session_token(user)
         return {
             "process": "Sign In",
             "result": True,
@@ -81,9 +61,7 @@ def validateUser(email, password):
             "last_name": user.get("last_name") or user.get("lastname"),
             "name": user.get("first_name") or user.get("name"),
             "lastname": user.get("last_name") or user.get("lastname"),
-            "access_token": token,
             "token_type": "Bearer",
-            "expires_in": JWT_EXPIRES_MINUTES * 60,
         }, 200
     except Exception as e:
         print(f"Error occurred during user validation: {e}")
